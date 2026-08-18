@@ -1,7 +1,7 @@
 package com.example.demo.controller;
 
-import com.example.demo.common.response.ApiResponse;
 import com.example.demo.config.security.CustomUserDetails;
+import com.example.demo.dto.response.ApiResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;

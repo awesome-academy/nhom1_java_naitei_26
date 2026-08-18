@@ -1,7 +1,7 @@
 package com.example.demo.service;
 
-import com.example.demo.dto.LoginRequest;
-import com.example.demo.dto.LoginResponse;
+import com.example.demo.dto.request.LoginRequest;
+import com.example.demo.dto.response.LoginResponse;
 import org.springframework.security.core.Authentication;
 
 public interface AuthService {

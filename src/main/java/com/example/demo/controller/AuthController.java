@@ -1,8 +1,8 @@
 package com.example.demo.controller;
 
-import com.example.demo.common.response.ApiResponse;
-import com.example.demo.dto.LoginRequest;
-import com.example.demo.dto.LoginResponse;
+import com.example.demo.dto.request.LoginRequest;
+import com.example.demo.dto.response.ApiResponse;
+import com.example.demo.dto.response.LoginResponse;
 import com.example.demo.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
