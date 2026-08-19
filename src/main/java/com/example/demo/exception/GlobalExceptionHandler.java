@@ -91,4 +91,18 @@ public class GlobalExceptionHandler {
                         "Dữ liệu không hợp lệ: " + errorMessage
                 ));
     }
+
+    /**
+     * Bắt lỗi 404 Not Found khi không tìm thấy tài nguyên trong hệ thống
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleResourceNotFoundException(ResourceNotFoundException ex) {
+        log.error("ResourceNotFoundException: {}", ex.getMessage());
+
+        ApiResponse<Object> response = ApiResponse.error(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
 }
