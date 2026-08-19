@@ -22,6 +22,19 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     /**
+     * Bắt lỗi trùng lặp tài nguyên (ví dụ: Email đã được sử dụng)
+     */
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponse<Object>> handleDuplicateResourceException(DuplicateResourceException ex) {
+        log.error("DuplicateResourceException: {}", ex.getMessage());
+        ApiResponse<Object> response = ApiResponse.error(
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    /**
      * Bắt lỗi 403 Forbidden khi Refresh Token hết hạn, bị thu hồi hoặc không hợp lệ
      */
     @ExceptionHandler(TokenRefreshException.class)
