@@ -11,15 +11,11 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoginResponse {
+public class TokenRefreshResponse {
 
     private String accessToken;
     private String refreshToken;
 
     @Builder.Default
     private String tokenType = "Bearer";
-
-    private Long id;
-    private String email;
-    private String role;
 }

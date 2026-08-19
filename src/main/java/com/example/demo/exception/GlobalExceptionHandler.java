@@ -22,6 +22,19 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     /**
+     * Bắt lỗi 403 Forbidden khi Refresh Token hết hạn, bị thu hồi hoặc không hợp lệ
+     */
+    @ExceptionHandler(TokenRefreshException.class)
+    public ResponseEntity<ApiResponse<Object>> handleTokenRefreshException(TokenRefreshException ex) {
+        log.error("TokenRefreshException: {}", ex.getMessage());
+        ApiResponse<Object> response = ApiResponse.error(
+                HttpStatus.FORBIDDEN.value(),
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    /**
      * Bắt lỗi 403 Forbidden khi vi phạm @PreAuthorize
      */
     @ExceptionHandler(AccessDeniedException.class)
