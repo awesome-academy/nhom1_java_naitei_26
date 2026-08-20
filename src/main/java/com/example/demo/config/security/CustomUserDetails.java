@@ -1,7 +1,7 @@
 package com.example.demo.config.security;
 
-import com.example.demo.entity.User;
-import com.example.demo.enums.UserStatus;
+import com.example.demo.entity.auth.User;
+import com.example.demo.enums.auth.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;

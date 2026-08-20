@@ -1,10 +1,1 @@
-package com.example.demo.enums;
-
-public enum OrderStatus {
-    PENDING,
-    CONFIRMED,
-    PREPARING,
-    DELIVERING,
-    COMPLETED,
-    CANCELLED
-}
+// Moved to com.example.demo.enums.order.OrderStatus

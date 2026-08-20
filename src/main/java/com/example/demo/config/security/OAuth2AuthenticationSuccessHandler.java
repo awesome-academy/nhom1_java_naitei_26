@@ -1,13 +1,13 @@
 package com.example.demo.config.security;
 
-import com.example.demo.entity.OAuthAccount;
-import com.example.demo.entity.User;
-import com.example.demo.enums.OAuthProvider;
-import com.example.demo.enums.UserRole;
-import com.example.demo.enums.UserStatus;
-import com.example.demo.repository.OAuthAccountRepository;
-import com.example.demo.repository.UserRepository;
-import com.example.demo.service.RefreshTokenService;
+import com.example.demo.entity.auth.OAuthAccount;
+import com.example.demo.entity.auth.User;
+import com.example.demo.enums.auth.OAuthProvider;
+import com.example.demo.enums.auth.UserRole;
+import com.example.demo.enums.auth.UserStatus;
+import com.example.demo.repository.auth.OAuthAccountRepository;
+import com.example.demo.repository.auth.UserRepository;
+import com.example.demo.service.auth.RefreshTokenService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

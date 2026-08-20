@@ -1,6 +1,1 @@
-package com.example.demo.enums;
-
-public enum ProductType {
-    FOOD,
-    DRINK
-}
+// Moved to com.example.demo.enums.product.ProductType

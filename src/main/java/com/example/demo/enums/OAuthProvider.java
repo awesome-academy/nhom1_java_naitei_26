@@ -1,7 +1,1 @@
-package com.example.demo.enums;
-
-public enum OAuthProvider {
-    GOOGLE,
-    FACEBOOK,
-    TWITTER
-}
+// Moved to com.example.demo.enums.auth.OAuthProvider

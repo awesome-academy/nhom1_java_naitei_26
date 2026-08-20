@@ -1,6 +1,1 @@
-package com.example.demo.enums;
-
-public enum UserRole {
-    USER,
-    ADMIN
-}
+// Moved to com.example.demo.enums.auth.UserRole
