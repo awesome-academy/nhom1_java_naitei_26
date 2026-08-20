@@ -1,11 +1,20 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.response.CartResponse;
 import com.example.demo.entity.Cart;
 import com.example.demo.entity.CartItem;
 
 import java.util.List;
 
 public interface CartService {
+
+    /**
+     * Lấy thông tin chi tiết giỏ hàng dạng DTO (bao gồm danh sách sản phẩm, đơn giá, thành tiền và tổng tiền giỏ hàng).
+     *
+     * @param userId ID của người dùng
+     * @return CartResponse chứa toàn bộ dữ liệu hiển thị cho Frontend
+     */
+    CartResponse getCartDetailsByUserId(Long userId);
 
     /**
      * Lấy giỏ hàng của người dùng theo userId. Nếu người dùng chưa có giỏ hàng, tự động tạo mới.
