@@ -1,12 +1,16 @@
 package com.example.demo.service.impl;
 
+import com.example.demo.dto.response.CartItemResponse;
+import com.example.demo.dto.response.CartResponse;
 import com.example.demo.entity.Cart;
 import com.example.demo.entity.CartItem;
 import com.example.demo.entity.Product;
+import com.example.demo.entity.ProductImage;
 import com.example.demo.entity.User;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.CartItemRepository;
 import com.example.demo.repository.CartRepository;
+import com.example.demo.repository.ProductImageRepository;
 import com.example.demo.repository.ProductRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.CartService;
@@ -14,7 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +33,49 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItemRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
+
+    @Override
+    @Transactional
+    public CartResponse getCartDetailsByUserId(Long userId) {
+        Cart cart = getOrCreateCartByUserId(userId);
+        List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        List<CartItemResponse> itemResponses = new ArrayList<>();
+
+        for (CartItem item : cartItems) {
+            Product product = item.getProduct();
+            BigDecimal price = product.getPrice();
+            Integer quantity = item.getQuantity();
+            BigDecimal subtotal = price.multiply(BigDecimal.valueOf(quantity));
+
+            totalAmount = totalAmount.add(subtotal);
+
+            String imageUrl = productImageRepository.findByProductIdAndIsPrimaryTrue(product.getId())
+                    .map(ProductImage::getImageUrl)
+                    .orElse(null);
+
+            CartItemResponse itemResponse = CartItemResponse.builder()
+                    .id(item.getId())
+                    .productId(product.getId())
+                    .productName(product.getName())
+                    .productImageUrl(imageUrl)
+                    .price(price)
+                    .quantity(quantity)
+                    .subtotal(subtotal)
+                    .build();
+
+            itemResponses.add(itemResponse);
+        }
+
+        return CartResponse.builder()
+                .cartId(cart.getId())
+                .userId(userId)
+                .items(itemResponses)
+                .totalAmount(totalAmount)
+                .build();
+    }
 
     @Override
     public Cart getOrCreateCartByUserId(Long userId) {            // lấy giỏ hàng của người dùng nếu không có thì tạo mới
@@ -38,7 +87,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<CartItem> getCartItemsByUserId(Long userId) {     // lấy danh sách sản phẩm trong giỏ hàng của người dùng
         Cart cart = getOrCreateCartByUserId(userId);
         return cartItemRepository.findByCartId(cart.getId());
