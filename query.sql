@@ -156,8 +156,14 @@ CREATE TABLE categories (
 -- drink
 -- DRINK
 -- from becoming different categories
-CREATE UNIQUE INDEX uk_categories_name_normalized
-ON categories (LOWER(TRIM(name)));
+-- Partial index: chỉ khóa tên của danh mục đang ACTIVE, cho phép tái dùng tên sau khi soft-delete
+CREATE UNIQUE INDEX uk_categories_name_active
+ON categories (LOWER(TRIM(name)))
+WHERE status = 'ACTIVE';
+
+-- LƯU Ý MIGRATION (DB đã có index cũ):
+--   DROP INDEX uk_categories_name_normalized;
+--   chạy lại CREATE UNIQUE INDEX uk_categories_name_active ở trên.
 
 
 CREATE TRIGGER trg_categories_updated_at
@@ -594,3 +600,21 @@ ON products (LOWER(name));
 -- =========================================================
 -- END OF DATABASE SCHEMA V2
 -- =========================================================
+-- =========================================================
+-- SEED: TÀI KHOẢN ADMIN
+-- =========================================================
+-- Email:    admin@example.com
+-- Password: admin123
+-- (Hash BCrypt cost 10; chạy lại nhiều lần cũng không tạo trùng)
+INSERT INTO users (email, password_hash, full_name, phone, address, avatar_url, role, status)
+SELECT 'admin@example.com',
+       '$2y$10$Ce9TLKF8ApsSjWy868uKQuuec5zeMe6Tn36Ms1VGv.OACeaoq3nlC',
+       'Administrator',
+       NULL,
+       NULL,
+       NULL,
+       'ADMIN',
+       'ACTIVE'
+WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE LOWER(email) = 'admin@example.com'
+);
