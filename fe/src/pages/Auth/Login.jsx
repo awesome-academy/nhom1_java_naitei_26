@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import signinimage from "../../images/signin-g.svg";
@@ -15,6 +15,18 @@ const Login = () => {
   const [form, setForm] = useState({ email: "", password: "", remember: false });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const errorParam = params.get("error");
+    if (errorParam) {
+      if (errorParam === "oauth2") {
+        setErrors({ form: "Đăng nhập bằng Google không thành công. Vui lòng thử lại hoặc dùng email & mật khẩu." });
+      } else {
+        setErrors({ form: decodeURIComponent(errorParam) });
+      }
+    }
+  }, [location.search]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

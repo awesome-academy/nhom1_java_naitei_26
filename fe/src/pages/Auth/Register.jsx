@@ -49,15 +49,20 @@ const Register = () => {
     e.preventDefault();
     if (!validate()) return;
     try {
-      await register(form);
+      await register({
+        fullName: `${form.firstName} ${form.lastName}`.trim(),
+        email: form.email,
+        password: form.password,
+        phone: form.phone,
+      });
       await Swal.fire({
         icon: "success",
         title: "Đăng ký thành công",
-        text: "Tài khoản của bạn đã sẵn sàng.",
-        timer: 1800,
+        text: "Tài khoản của bạn đã được tạo thành công. Vui lòng đăng nhập!",
+        timer: 2000,
         showConfirmButton: false,
       });
-      navigate("/");
+      navigate("/dang-nhap");
     } catch (err) {
       setErrors({ form: err.message });
     }

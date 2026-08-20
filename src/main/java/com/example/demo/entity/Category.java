@@ -1,5 +1,6 @@
 package com.example.demo.entity;
 
+import com.example.demo.enums.CategoryStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
