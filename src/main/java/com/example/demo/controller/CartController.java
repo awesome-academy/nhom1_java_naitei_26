@@ -4,9 +4,13 @@ import com.example.demo.config.security.CustomUserDetails;
 import com.example.demo.dto.response.ApiResponse;
 import com.example.demo.dto.response.CartResponse;
 import com.example.demo.service.CartService;
+import com.example.demo.dto.request.AddToCartRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,5 +33,22 @@ public class CartController {
         Long userId = userDetails.getUser().getId();
         CartResponse response = cartService.getCartDetailsByUserId(userId);
         return ApiResponse.ok("Lấy thông tin giỏ hàng thành công", response);
+    }
+
+    /**
+     * API thêm sản phẩm vào giỏ hàng của người dùng hiện tại (Authenticated User).
+     *
+     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
+     * @param request DTO chứa productId và quantity
+     * @return ApiResponse chứa CartResponse đầy đủ thông tin giỏ hàng sau khi thêm/cập nhật
+     */
+    @PostMapping("/items")
+    public ApiResponse<CartResponse> addToCart(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody AddToCartRequest request) {
+        Long userId = userDetails.getUser().getId();
+        cartService.addToCart(userId, request.getProductId(), request.getQuantity());
+        CartResponse response = cartService.getCartDetailsByUserId(userId);
+        return ApiResponse.ok("Thêm sản phẩm vào giỏ hàng thành công", response);
     }
 }
