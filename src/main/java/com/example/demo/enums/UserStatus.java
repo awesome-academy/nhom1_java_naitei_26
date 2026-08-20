@@ -1,6 +1,1 @@
-package com.example.demo.enums;
-
-public enum UserStatus {
-    ACTIVE,
-    BLOCKED
-}
+// Moved to com.example.demo.enums.auth.UserStatus

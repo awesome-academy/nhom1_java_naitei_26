@@ -1,6 +1,1 @@
-package com.example.demo.enums;
-
-public enum ProductStatus {
-    ACTIVE,
-    INACTIVE
-}
+// Moved to com.example.demo.enums.product.ProductStatus

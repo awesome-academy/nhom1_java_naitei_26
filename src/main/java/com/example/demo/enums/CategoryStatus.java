@@ -1,6 +1,1 @@
-package com.example.demo.enums;
-
-public enum CategoryStatus {
-    ACTIVE,
-    INACTIVE
-}
+// Moved to com.example.demo.enums.product.CategoryStatus

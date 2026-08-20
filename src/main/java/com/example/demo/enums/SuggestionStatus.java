@@ -1,7 +1,1 @@
-package com.example.demo.enums;
-
-public enum SuggestionStatus {
-    PENDING,
-    APPROVED,
-    REJECTED
-}
+// Moved to com.example.demo.enums.product.SuggestionStatus
