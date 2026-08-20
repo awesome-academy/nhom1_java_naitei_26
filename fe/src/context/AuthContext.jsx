@@ -1,25 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-// Quản lý phiên đăng nhập ở phía FE.
-// Hiện lưu tạm trong localStorage; khi có BE chỉ cần thay phần thân của
-// login / register / loginWithProvider bằng lời gọi API tương ứng.
-
 const AuthContext = createContext(null);
 
 const SESSION_KEY = "fd_auth_user";
-const USERS_KEY = "fd_users";
-
-function readUsers() {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
-  } catch {
-    return [];
-  }
-}
-
-function writeUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
-}
+const ACCESS_TOKEN_KEY = "accessToken";
+const REFRESH_TOKEN_KEY = "refreshToken";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
 function readSession() {
   try {
@@ -48,35 +34,45 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const persist = (nextUser) => {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
-    setUser(nextUser);
+  const persist = (nextUser, accessToken, refreshToken) => {
+    if (nextUser) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
+      if (accessToken) localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+      if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      setUser(nextUser);
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem(ACCESS_TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      setUser(null);
+    }
     return nextUser;
   };
 
-  const register = async ({ firstName, lastName, email, password, phone }) => {
+  const register = async ({ fullName, firstName, lastName, email, password, phone, address }) => {
     setLoading(true);
     try {
-      const users = readUsers();
-      if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
-        throw new Error("Email này đã được đăng ký.");
-      }
-      const newUser = {
-        id: Date.now(),
-        firstName,
-        lastName,
-        fullName: `${firstName} ${lastName}`.trim(),
-        email,
-        phone: phone || "",
-        password, // Chỉ dùng cho bản demo — BE thật phải hash phía server.
-        provider: "local",
-        role: "customer",
-        avatar: null,
-        createdAt: new Date().toISOString(),
+      const finalFullName = fullName || `${firstName || ""} ${lastName || ""}`.trim() || email.split("@")[0];
+      const payload = {
+        fullName: finalFullName,
+        email: email.trim(),
+        password,
+        phone: phone && phone.trim() ? phone.trim() : null,
+        address: address && address.trim() ? address.trim() : null,
       };
-      writeUsers([...users, newUser]);
-      const { password: _pw, ...safeUser } = newUser;
-      return persist(safeUser);
+
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || (data.status && data.status >= 400)) {
+        throw new Error(data.message || "Đăng ký không thành công!");
+      }
+
+      return data.data;
     } finally {
       setLoading(false);
     }
@@ -85,59 +81,78 @@ export function AuthProvider({ children }) {
   const login = async ({ email, password, remember }) => {
     setLoading(true);
     try {
-      const users = readUsers();
-      const found = users.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-      );
-      if (!found) {
-        throw new Error("Email hoặc mật khẩu không đúng.");
-      }
-      const { password: _pw, ...safeUser } = found;
-      return persist({ ...safeUser, remember: !!remember });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Đăng nhập qua Facebook / Twitter / Google.
-  // Bản demo tạo thẳng phiên; khi tích hợp thật sẽ redirect sang OAuth provider.
-  const loginWithProvider = async (providerId) => {
-    setLoading(true);
-    try {
-      const provider = SOCIAL_PROVIDERS.find((p) => p.id === providerId);
-      if (!provider) throw new Error("Nhà cung cấp không được hỗ trợ.");
-      const socialUser = {
-        id: `${providerId}-${Date.now()}`,
-        firstName: "Người dùng",
-        lastName: provider.label,
-        fullName: `Người dùng ${provider.label}`,
-        email: `user.${providerId}@example.com`,
-        phone: "",
-        provider: providerId,
-        role: "customer",
-        avatar: null,
-        createdAt: new Date().toISOString(),
+      const payload = {
+        email: email.trim(),
+        password,
       };
-      return persist(socialUser);
+
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || (data.status && data.status >= 400)) {
+        throw new Error(data.message || "Đăng nhập không thành công!");
+      }
+
+      const authData = data.data;
+      const userSession = {
+        id: authData.id,
+        email: authData.email,
+        fullName: authData.email.split("@")[0],
+        role: authData.role,
+        remember: !!remember,
+      };
+
+      persist(userSession, authData.accessToken, authData.refreshToken);
+      return userSession;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem(SESSION_KEY);
-    setUser(null);
+  const loginWithProvider = async (providerId) => {
+    if (providerId === "google") {
+      window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+      return;
+    }
+    const provider = SOCIAL_PROVIDERS.find((p) => p.id === providerId);
+    if (!provider) throw new Error("Nhà cung cấp không được hỗ trợ.");
+    const socialUser = {
+      id: `${providerId}-${Date.now()}`,
+      fullName: `Người dùng ${provider.label}`,
+      email: `user.${providerId}@example.com`,
+      role: "USER",
+    };
+    return persist(socialUser);
+  };
+
+  const logout = async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (refreshToken) {
+      try {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch (err) {
+        console.error("Logout API error:", err);
+      }
+    }
+    persist(null);
   };
 
   const updateProfile = (patch) => {
     if (!user) return null;
     const next = { ...user, ...patch };
-    next.fullName = `${next.firstName || ""} ${next.lastName || ""}`.trim();
-    const users = readUsers().map((u) =>
-      u.id === user.id ? { ...u, ...patch, fullName: next.fullName } : u
-    );
-    writeUsers(users);
     return persist(next);
+  };
+
+  const persistUserSession = (nextUser, accessToken, refreshToken) => {
+    return persist(nextUser, accessToken, refreshToken);
   };
 
   const value = useMemo(
@@ -150,6 +165,7 @@ export function AuthProvider({ children }) {
       loginWithProvider,
       logout,
       updateProfile,
+      persistUserSession,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [user, loading]

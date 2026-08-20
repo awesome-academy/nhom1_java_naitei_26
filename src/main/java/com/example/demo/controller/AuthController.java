@@ -16,12 +16,17 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -82,5 +87,16 @@ public class AuthController {
         refreshTokenService.revokeOrDeleteToken(request.getRefreshToken());
         SecurityContextHolder.clearContext();
         return ApiResponse.ok("Đăng xuất thành công!", null);
+    }
+
+    /**
+     * 5. OAUTH2 USER: Lấy thông tin tài khoản Google sau khi xác thực OAuth2
+     */
+    @GetMapping("/oauth2/user")
+    public ApiResponse<Map<String, Object>> getOAuth2User(@AuthenticationPrincipal OAuth2User oauth2User) {
+        if (oauth2User == null) {
+            return ApiResponse.error(HttpStatus.UNAUTHORIZED.value(), "Chưa xác thực qua OAuth2!");
+        }
+        return ApiResponse.ok("Lấy thông tin tài khoản Google thành công!", oauth2User.getAttributes());
     }
 }

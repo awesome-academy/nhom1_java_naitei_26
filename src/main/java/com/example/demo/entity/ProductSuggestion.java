@@ -1,5 +1,7 @@
 package com.example.demo.entity;
 
+import com.example.demo.enums.ProductType;
+import com.example.demo.enums.SuggestionStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

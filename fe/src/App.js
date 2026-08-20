@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import ForgotPassword from "./pages/Auth/ForgotPassword";
+import OAuth2RedirectHandler from "./pages/Auth/OAuth2RedirectHandler";
 
 // ---- Sản phẩm (Thực phẩm & Đồ uống) ----
 import ProductList from "./pages/Products/ProductList";
@@ -43,6 +44,7 @@ const App = () => {
           <Route path="/dang-nhap" element={<Login />} />
           <Route path="/dang-ky" element={<Register />} />
           <Route path="/quen-mat-khau" element={<ForgotPassword />} />
+          <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
 
           {/* ---- Thực phẩm & Đồ uống ---- */}
           <Route path="/thuc-pham-do-uong" element={<ProductList />} />
