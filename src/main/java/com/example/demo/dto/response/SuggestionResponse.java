@@ -1,7 +1,7 @@
 package com.example.demo.dto.response;
 
-import com.example.demo.enums.ProductType;
-import com.example.demo.enums.SuggestionStatus;
+import com.example.demo.enums.product.ProductType;
+import com.example.demo.enums.product.SuggestionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

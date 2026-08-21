@@ -2,7 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.config.security.CustomUserDetails;
 import com.example.demo.dto.request.SuggestionRequest;
-import com.example.demo.dto.response.ApiResponse;
+import com.example.demo.dto.response.common.ApiResponse;
 import com.example.demo.dto.response.SuggestionResponse;
 import com.example.demo.service.SuggestionService;
 import jakarta.validation.Valid;
