@@ -118,6 +118,10 @@ export function AuthProvider({ children }) {
       window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
       return;
     }
+    if (providerId === "facebook") {
+      window.location.href = `${API_BASE_URL}/oauth2/authorization/facebook`;
+      return;
+    }
     const provider = SOCIAL_PROVIDERS.find((p) => p.id === providerId);
     if (!provider) throw new Error("Nhà cung cấp không được hỗ trợ.");
     const socialUser = {

@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders app header and footer without crashing', () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  const logos = screen.getAllByAltText(/Thực phẩm & Đồ uống/i);
+  expect(logos.length).toBeGreaterThan(0);
 });
