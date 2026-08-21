@@ -2,12 +2,12 @@ package com.example.demo.service.impl;
 
 import com.example.demo.dto.request.SuggestionRequest;
 import com.example.demo.dto.response.SuggestionResponse;
-import com.example.demo.entity.ProductSuggestion;
-import com.example.demo.entity.User;
-import com.example.demo.enums.SuggestionStatus;
+import com.example.demo.entity.product.ProductSuggestion;
+import com.example.demo.entity.auth.User;
+import com.example.demo.enums.product.SuggestionStatus;
 import com.example.demo.exception.ResourceNotFoundException;
-import com.example.demo.repository.ProductSuggestionRepository;
-import com.example.demo.repository.UserRepository;
+import com.example.demo.repository.product.ProductSuggestionRepository;
+import com.example.demo.repository.auth.UserRepository;
 import com.example.demo.service.SuggestionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
