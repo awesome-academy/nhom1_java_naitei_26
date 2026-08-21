@@ -59,22 +59,21 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedHandler(customAccessDeniedHandler)
-                )
+                        .accessDeniedHandler(customAccessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 // CẤU HÌNH GOOGLE OAUTH2 LOGIN (TASK #99064)
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                         .failureHandler((request, response, exception) -> {
                             log.error("OAuth2 Login Failed: ", exception);
-                            String errorMsg = URLEncoder.encode(exception.getMessage() != null ? exception.getMessage() : "oauth2", StandardCharsets.UTF_8);
+                            String errorMsg = URLEncoder.encode(
+                                    exception.getMessage() != null ? exception.getMessage() : "oauth2",
+                                    StandardCharsets.UTF_8);
                             response.sendRedirect("http://localhost:3000/dang-nhap?error=" + errorMsg);
-                        })
-                );
+                        }));
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
