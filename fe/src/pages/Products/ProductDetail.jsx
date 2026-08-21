@@ -8,6 +8,7 @@ import SocialShare from "../../components/SocialShare";
 import ProductCard from "../../components/ProductCard";
 import useReviews from "../../hooks/useReviews";
 import { useAuth } from "../../context/AuthContext";
+import { useCart } from "../../context/CartContext";
 import {
   getProductById,
   getRelatedProducts,
@@ -20,6 +21,7 @@ const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { addItem } = useCart();
 
   const product = useMemo(() => getProductById(id), [id]);
   const related = useMemo(() => getRelatedProducts(product), [product]);
@@ -64,6 +66,7 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
+    addItem(product.id, quantity);
     Swal.fire({
       icon: "success",
       title: "Đã thêm vào giỏ hàng",
@@ -78,7 +81,8 @@ const ProductDetail = () => {
       navigate("/dang-nhap", { state: { from: { pathname: `/san-pham/${product.id}` } } });
       return;
     }
-    navigate("/ShopCheckOut");
+    addItem(product.id, quantity);
+    navigate("/thanh-toan");
   };
 
   const handleSubmitReview = (e) => {

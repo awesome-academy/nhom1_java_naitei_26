@@ -3,10 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import Grocerylogo from "../images/Grocerylogo.png";
 import { useAuth } from "../context/AuthContext";
+import { useCart } from "../context/CartContext";
 import { CATEGORIES } from "../data/products";
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const { totalItems } = useCart();
   const navigate = useNavigate();
 
   const [keyword, setKeyword] = useState("");
@@ -87,6 +89,14 @@ const Header = () => {
                 title="Giỏ hàng"
               >
                 <i className="fas fa-shopping-bag fs-5" />
+                {totalItems > 0 && (
+                  <span
+                    className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success"
+                    style={{ fontSize: "0.65rem" }}
+                  >
+                    {totalItems}
+                  </span>
+                )}
               </Link>
               <Link
                 to={isAuthenticated ? "/ho-so" : "/dang-nhap"}

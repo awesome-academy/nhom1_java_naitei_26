@@ -1,511 +1,177 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import "@fortawesome/fontawesome-free/css/all.min.css";
-import productimg1 from "../../images/product-img-1.jpg";
-import productimg2 from "../../images/product-img-2.jpg";
-import productimg3 from "../../images/product-img-3.jpg";
-import productimg4 from "../../images/product-img-4.jpg";
-import productimg5 from "../../images/product-img-5.jpg";
-import productimg6 from "../../images/product-img-6.jpg";
-import { MagnifyingGlass } from "react-loader-spinner";
 import ScrollToTop from "../ScrollToTop";
+import AccountSidebar from "../../components/AccountSidebar";
+import { useAuth } from "../../context/AuthContext";
+import { getOrdersByUser, ORDER_STATUS } from "../../data/orders";
+import { formatPrice } from "../../utils/format";
+
+const STATUS_BADGE = {
+  [ORDER_STATUS.PENDING]: "bg-warning-subtle text-warning",
+  [ORDER_STATUS.CONFIRMED]: "bg-info-subtle text-info",
+  [ORDER_STATUS.SHIPPING]: "bg-primary-subtle text-primary",
+  [ORDER_STATUS.COMPLETED]: "bg-success-subtle text-success",
+};
 
 const OrderHistory = () => {
-  // loading
-  const [loaderStatus, setLoaderStatus] = useState(true);
-  useEffect(() => {
-    setTimeout(() => {
-      setLoaderStatus(false);
-    }, 1500);
-  }, []);
+  const { user } = useAuth();
+  const orders = useMemo(() => getOrdersByUser(user.id), [user.id]);
+  const [expandedId, setExpandedId] = useState(null);
 
   return (
     <div>
-       <>
-            <ScrollToTop/>
-            </>
-      <>
-        {/* section */}
-        <section>
-          <div className="container">
-            {/* row */}
-            <div className="row">
-              {/* col */}
+      <ScrollToTop />
 
-              {/* <div> */}
-              <div className="col-12">
-                <div className="p-6 d-flex justify-content-between align-items-center d-md-none">
-                  {/* heading */}
-                  <h3 className="fs-5 mb-0">Account Setting</h3>
-                  {/* button */}
-                  <button
-                    className="btn btn-outline-gray-400 text-muted d-md-none"
-                    type="button"
-                    data-bs-toggle="offcanvas"
-                    data-bs-target="#offcanvasAccount"
-                    aria-controls="offcanvasAccount"
-                  >
-                    <i className="fas fa-bars"></i>
-                  </button>
-                </div>
-              </div>
-              {/* col */}
-              <div className="col-lg-3 col-md-4 col-12 border-end  d-none d-md-block">
-                <div className="pt-10 pe-lg-10">
-                  {/* nav */}
-                  <ul className="nav flex-column nav-pills nav-pills-dark">
-                    {/* nav item */}
-                    <li className="nav-item">
-                      <Link
-                        className="nav-link active"
-                        aria-current="page"
-                        to="/don-hang"
-                      >
-                        <i className="fas fa-shopping-bag me-2" />
-                        Your Orders
-                      </Link>
-                    </li>
-                    {/* nav item */}
-                    <li className="nav-item">
-                      <Link className="nav-link" to="/ho-so">
-                        <i className="fas fa-cog me-2" />
-                        Settings
-                      </Link>
-                    </li>
-                    {/* nav item */}
-                    <li className="nav-item">
-                      <Link className="nav-link" to="/gio-hang">
-                        <i className="fas fa-shopping-basket me-2" />
-                        Giỏ hàng
-                      </Link>
-                    </li>
-                    {/* nav item */}
-                    <li className="nav-item">
-                      <hr />
-                    </li>
-                    {/* nav item */}
-                    <li className="nav-item">
-                      <Link className="nav-link " to="/">
-                        <i className="fas fa-sign-out-alt me-2" />
-                        Log out
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              {/* </div> */}
+      <div className="container mt-6">
+        <nav aria-label="breadcrumb">
+          <ol className="breadcrumb">
+            <li className="breadcrumb-item">
+              <Link to="/">Trang chủ</Link>
+            </li>
+            <li className="breadcrumb-item active" aria-current="page">
+              Đơn hàng của tôi
+            </li>
+          </ol>
+        </nav>
+      </div>
 
-              <div className="col-lg-9 col-md-8 col-12">
-                <div>
-                  {loaderStatus ? (
-                    <div className="loader-container">
-                      {/* <PulseLoader loading={loaderStatus} size={50} color="#0aad0a" /> */}
-                      <MagnifyingGlass
-                        visible={true}
-                        height="100"
-                        width="100"
-                        ariaLabel="magnifying-glass-loading"
-                        wrapperStyle={{}}
-                        wrapperclassName="magnifying-glass-wrapper"
-                        glassColor="#c0efff"
-                        color="#0aad0a"
-                      />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="p-6 p-lg-10">
-                        {/* heading */}
-                        <h2 className="mb-6">Your Orders</h2>
-                        <div className="table-responsive border-0">
-                          {/* Table */}
-                          <table className="table mb-0 text-nowrap">
-                            {/* Table Head */}
-                            <thead className="table-light">
-                              <tr>
-                                <th className="border-0">&nbsp;</th>
-                                <th className="border-0">Product</th>
-                                <th className="border-0">Order</th>
-                                <th className="border-0">Date</th>
-                                <th className="border-0">Items</th>
-                                <th className="border-0">Status</th>
-                                <th className="border-0">Amount</th>
-                                <th className="border-0" />
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {/* Table body */}
-                              <tr>
-                                <td className="align-middle border-top-0 w-0">
-                                  <Link to="#">
-                                    {" "}
-                                    <img
-                                      src={productimg1}
-                                      alt="Ecommerce"
-                                      className="icon-shape icon-xl"
-                                    />
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link
-                                    to="#"
-                                    className="fw-semi-bold text-inherit"
+      <section className="mt-4 mb-lg-14 mb-8">
+        <div className="container">
+          <div className="row">
+            <div className="col-lg-3 mb-6 mb-lg-0">
+              <AccountSidebar />
+            </div>
+
+            <div className="col-lg-9">
+              <h1 className="h2 fw-bold mb-6">Đơn hàng của tôi</h1>
+
+              {orders.length === 0 ? (
+                <div className="text-center py-10">
+                  <i className="fas fa-box-open fa-3x text-muted mb-3" />
+                  <h5>Bạn chưa có đơn hàng nào</h5>
+                  <p className="text-muted">Đơn hàng của bạn sẽ hiển thị tại đây.</p>
+                  <Link to="/thuc-pham-do-uong" className="btn btn-primary">
+                    Bắt đầu mua sắm
+                  </Link>
+                </div>
+              ) : (
+                <div className="d-flex flex-column gap-3">
+                  {orders.map((order) => {
+                    const isExpanded = expandedId === order.id;
+                    const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
+                    return (
+                      <div className="card" key={order.id}>
+                        <div className="card-body">
+                          <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                            <div>
+                              <div className="fw-semibold">Mã đơn: {order.id}</div>
+                              <div className="small text-muted">
+                                Đặt lúc{" "}
+                                {new Date(order.createdAt).toLocaleString("vi-VN")}
+                              </div>
+                            </div>
+                            <span
+                              className={`badge ${STATUS_BADGE[order.status]}`}
+                              style={{ height: "fit-content" }}
+                            >
+                              {order.status}
+                            </span>
+                          </div>
+
+                          <div className="d-flex justify-content-between align-items-center mt-3">
+                            <span className="text-muted small">
+                              {itemCount} sản phẩm
+                            </span>
+                            <span className="fw-bold text-primary fs-6">
+                              {formatPrice(order.total)}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-link btn-sm px-0 mt-2 text-decoration-none"
+                            onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                          >
+                            {isExpanded ? "Thu gọn" : "Xem chi tiết"}{" "}
+                            <i className={`fas fa-chevron-${isExpanded ? "up" : "down"} ms-1`} />
+                          </button>
+
+                          {isExpanded && (
+                            <div className="mt-3 pt-3 border-top">
+                              <ul className="list-unstyled mb-4">
+                                {order.items.map((item) => (
+                                  <li
+                                    key={item.productId}
+                                    className="d-flex justify-content-between align-items-center mb-2"
                                   >
-                                    <h6 className="mb-0">
-                                      Haldiram's Nagpur Aloo Bhujia
-                                    </h6>
-                                  </Link>
-                                  <span>
-                                    <small className="text-muted">400g</small>
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    #14899
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  March 5, 2023
-                                </td>
-                                <td className="align-middle border-top-0">1</td>
-                                <td className="align-middle border-top-0">
-                                  <span className="badge bg-warning">
-                                    Processing
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  $15.00
-                                </td>
-                                <td className="text-muted align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    <i className="feather-icon icon-eye" />
-                                  </Link>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className="align-middle border-top-0 w-0">
-                                  <Link to="#">
-                                    {" "}
-                                    <img
-                                      src={productimg2}
-                                      alt="Ecommerce"
-                                      className="icon-shape icon-xl"
-                                    />
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link
-                                    to="#"
-                                    className="fw-semi-bold text-inherit"
-                                  >
-                                    <h6 className="mb-0">
-                                      Nutri Choise Biscuit
-                                    </h6>
-                                  </Link>
-                                  <span>
-                                    <small className="text-muted">2 Pkt</small>
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    #14658
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  July 9, 2023
-                                </td>
-                                <td className="align-middle border-top-0">2</td>
-                                <td className="align-middle border-top-0">
-                                  <span className="badge bg-success">
-                                    Completed
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  $45.00
-                                </td>
-                                <td className="text-muted align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    <i className="feather-icon icon-eye" />
-                                  </Link>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className="align-middle border-top-0 w-0">
-                                  <Link to="#">
-                                    {" "}
-                                    <img
-                                      src={productimg3}
-                                      alt="Ecommerce"
-                                      className="icon-shape icon-xl"
-                                    />
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    <h6 className="mb-0">
-                                      Cadbury Dairy Milk 5 Star Bites{" "}
-                                    </h6>
-                                    <span>
-                                      <small className="text-muted">
-                                        202 g
-                                      </small>
+                                    <div className="d-flex align-items-center gap-2">
+                                      <img
+                                        src={item.image}
+                                        alt={item.name}
+                                        style={{ width: 44, height: 44, objectFit: "cover" }}
+                                        className="rounded-2"
+                                      />
+                                      <div className="small">
+                                        <div>{item.name}</div>
+                                        <div className="text-muted">
+                                          {formatPrice(item.price)} × {item.quantity}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <span className="small fw-semibold">
+                                      {formatPrice(item.price * item.quantity)}
                                     </span>
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    #13778
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  Oct 03, 2023
-                                </td>
-                                <td className="align-middle border-top-0">4</td>
-                                <td className="align-middle border-top-0">
-                                  <span className="badge bg-success">
-                                    Completed
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  $99.00
-                                </td>
-                                <td className="text-muted align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    <i className="feather-icon icon-eye" />
-                                  </Link>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className="align-middle border-top-0 w-0">
-                                  <Link to="#">
-                                    {" "}
-                                    <img
-                                      src={productimg4}
-                                      alt="Ecommerce"
-                                      className="icon-shape icon-xl"
-                                    />
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link
-                                    to="#"
-                                    className="fw-semi-bold text-inherit"
-                                  >
-                                    <h6 className="mb-0">
-                                      Onion Flavour Potato{" "}
-                                    </h6>
-                                  </Link>
-                                  <span>
-                                    <small className="text-muted">100 g</small>
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    #13746
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  March 5, 2023
-                                </td>
-                                <td className="align-middle border-top-0">1</td>
-                                <td className="align-middle border-top-0">
-                                  <span className="badge bg-success">
-                                    Completed
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  $12.00
-                                </td>
-                                <td className="text-muted align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    <i className="feather-icon icon-eye" />
-                                  </Link>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className="align-middle border-top-0 w-0">
-                                  <Link to="#">
-                                    {" "}
-                                    <img
-                                      src={productimg5}
-                                      alt="Ecommerce"
-                                      className="icon-shape icon-xl"
-                                    />
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link
-                                    to="#"
-                                    className="fw-semi-bold text-inherit"
-                                  >
-                                    <h6 className="mb-0">
-                                      Salted Instant Popcorn{" "}
-                                    </h6>
-                                  </Link>
-                                  <span>
-                                    <small className="text-muted">500 g</small>
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    #13566
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  July 9, 2023
-                                </td>
-                                <td className="align-middle border-top-0">2</td>
-                                <td className="align-middle border-top-0">
-                                  <span className="badge bg-danger">
-                                    Cancel
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  $6.00
-                                </td>
-                                <td className="text-muted align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    <i className="feather-icon icon-eye" />
-                                  </Link>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td className="align-middle border-top-0 w-0">
-                                  <Link to="#">
-                                    {" "}
-                                    <img
-                                      src={productimg6}
-                                      alt="Ecommerce"
-                                      className="icon-shape icon-xl"
-                                    />
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link
-                                    to="#"
-                                    className="fw-semi-bold text-inherit"
-                                  >
-                                    <h6 className="mb-0">
-                                      Blueberry Greek Yogurt{" "}
-                                    </h6>
-                                  </Link>
-                                  <span>
-                                    <small className="text-muted">500 g</small>
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    #12094
-                                  </Link>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  Oct 03, 2023
-                                </td>
-                                <td className="align-middle border-top-0">4</td>
-                                <td className="align-middle border-top-0">
-                                  <span className="badge bg-success">
-                                    Completed
-                                  </span>
-                                </td>
-                                <td className="align-middle border-top-0">
-                                  $18.00
-                                </td>
-                                <td className="text-muted align-middle border-top-0">
-                                  <Link to="#" className="text-inherit">
-                                    <i className="feather-icon icon-eye" />
-                                  </Link>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                                  </li>
+                                ))}
+                              </ul>
+
+                              <div className="row small">
+                                <div className="col-md-6 mb-2">
+                                  <div className="text-muted mb-1">Giao đến</div>
+                                  <div className="fw-semibold">
+                                    {order.shippingInfo.fullName} ·{" "}
+                                    {order.shippingInfo.phone}
+                                  </div>
+                                  <div>{order.shippingInfo.address}</div>
+                                  {order.shippingInfo.note && (
+                                    <div className="text-muted fst-italic">
+                                      Ghi chú: {order.shippingInfo.note}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="col-md-6 mb-2">
+                                  <div className="text-muted mb-1">Thanh toán</div>
+                                  <div>
+                                    {order.paymentMethod === "cod"
+                                      ? "Thanh toán khi nhận hàng (COD)"
+                                      : "Chuyển khoản ngân hàng"}
+                                  </div>
+                                  <div className="d-flex justify-content-between mt-2">
+                                    <span className="text-muted">Tạm tính</span>
+                                    <span>{formatPrice(order.subtotal)}</span>
+                                  </div>
+                                  <div className="d-flex justify-content-between">
+                                    <span className="text-muted">Phí vận chuyển</span>
+                                    <span>
+                                      {order.shippingFee === 0
+                                        ? "Miễn phí"
+                                        : formatPrice(order.shippingFee)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </>
-                  )}
+                    );
+                  })}
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </>
-      <>
-        {/* modal */}
-        <div
-          className="offcanvas offcanvas-start"
-          tabIndex={-1}
-          id="offcanvasAccount"
-          aria-labelledby="offcanvasAccountLabel"
-        >
-          {/* offcanvas header */}
-          <div className="offcanvas-header">
-            <h5 className="offcanvas-title" id="offcanvasAccountLabel">
-              My Account
-            </h5>
-            <button
-              type="button"
-              className="btn-close"
-              data-bs-dismiss="offcanvas"
-              aria-label="Close"
-            />
-          </div>
-          {/* offcanvas body */}
-          <div className="offcanvas-body">
-            <ul className="nav flex-column nav-pills nav-pills-dark">
-              {/* nav item */}
-              <li className="nav-item">
-                <a
-                  className="nav-link active"
-                  aria-current="page"
-                  href="/OrderHistory"
-                >
-                  <i className="fas fa-shopping-bag me-2" />
-                  Your Orders
-                </a>
-              </li>
-              {/* nav item */}
-              <li className="nav-item">
-                <a className="nav-link " href="/MyAccountSetting">
-                  <i className="fas fa-cog me-2" />
-                  Settings
-                </a>
-              </li>
-              {/* nav item */}
-              <li className="nav-item">
-                <a className="nav-link" href="/MyAccountAddress">
-                  <i className="fas fa-map-marker-alt me-2" />
-                  Address
-                </a>
-              </li>
-              {/* nav item */}
-              <li className="nav-item">
-                <a className="nav-link" href="/MyAcconutPaymentMethod">
-                  <i className="fas fa-credit-card me-2" />
-                  Payment Method
-                </a>
-              </li>
-              {/* nav item */}
-              <li className="nav-item">
-                <a className="nav-link" href="/MyAcconutNotification">
-                  <i className="fas fa-bell me-2" />
-                  Notification
-                </a>
-              </li>
-            </ul>
-            <hr className="my-6" />
-            <div>
-              {/* nav  */}
-              <ul className="nav flex-column nav-pills nav-pills-dark">
-                {/* nav item */}
-                <li className="nav-item">
-                  <a className="nav-link " href="/">
-                    <i className="fas fa-sign-out-alt me-2" />
-                    Log out
-                  </a>
-                </li>
-              </ul>
+              )}
             </div>
           </div>
         </div>
-      </>
+      </section>
     </div>
   );
 };

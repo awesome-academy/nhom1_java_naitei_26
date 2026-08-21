@@ -4,14 +4,16 @@ import Swal from "sweetalert2";
 import StarRating from "./StarRating";
 import { formatPrice, calcDiscountPercent } from "../utils/format";
 import { getCategoryName } from "../data/products";
+import { useCart } from "../context/CartContext";
 
 // Thẻ sản phẩm dùng lại ở trang danh sách, trang chủ và khối "sản phẩm liên quan".
 const ProductCard = ({ product, layout = "grid" }) => {
+  const { addItem } = useCart();
   const discount = calcDiscountPercent(product.price, product.oldPrice);
   const detailUrl = `/san-pham/${product.id}`;
 
-  // Giỏ hàng sẽ do phần Cart đảm nhiệm; ở đây chỉ báo cho người dùng.
   const handleAddToCart = () => {
+    addItem(product.id, 1);
     Swal.fire({
       icon: "success",
       title: "Đã thêm vào giỏ hàng",
