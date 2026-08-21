@@ -63,8 +63,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
-                // CẤU HÌNH GOOGLE OAUTH2 LOGIN (TASK #99064)
+                        .anyRequest().authenticated()
+                )
+                // CẤU HÌNH OAUTH2 LOGIN (GOOGLE: TASK #99064, FACEBOOK: TASK #99065)
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(oAuth2AuthenticationSuccessHandler)
                         .failureHandler((request, response, exception) -> {
