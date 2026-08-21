@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 
 // Context
 import { AuthProvider } from "./context/AuthContext";
+import { CartProvider } from "./context/CartContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Layout
@@ -35,6 +36,7 @@ import Profile from "./pages/Account/Profile";
 const App = () => {
   return (
     <AuthProvider>
+      <CartProvider>
       <Router>
         <Header />
         <Routes>
@@ -91,6 +93,7 @@ const App = () => {
         </Routes>
         <Footer />
       </Router>
+      </CartProvider>
     </AuthProvider>
   );
 };
