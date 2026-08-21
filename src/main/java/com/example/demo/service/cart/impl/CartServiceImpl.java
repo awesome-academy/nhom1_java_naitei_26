@@ -151,6 +151,10 @@ public class CartServiceImpl implements CartService {
         CartItem cartItem = cartItemRepository.findByIdAndCartUserId(cartItemId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("CartItem không tồn tại hoặc không thuộc về người dùng có id: " + userId));
 
+        Cart cart = cartItem.getCart();
+        cart.setUpdatedAt(OffsetDateTime.now());
+        cartRepository.save(cart);
+
         cartItemRepository.delete(cartItem);
     }
 

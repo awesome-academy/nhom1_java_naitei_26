@@ -9,6 +9,7 @@ import com.example.demo.service.cart.CartService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -72,5 +73,22 @@ public class CartController {
         cartService.updateCartItemQuantity(userId, cartItemId, request.getQuantity());
         CartResponse response = cartService.getCartDetailsByUserId(userId);
         return ApiResponse.ok("Cập nhật số lượng sản phẩm thành công", response);
+    }
+
+    /**
+     * API xóa một sản phẩm khỏi giỏ hàng của người dùng hiện tại.
+     *
+     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
+     * @param cartItemId ID của món hàng trong giỏ (CartItem) cần xóa
+     * @return ApiResponse chứa CartResponse đầy đủ thông tin giỏ hàng sau khi xóa
+     */
+    @DeleteMapping("/items/{cartItemId}")
+    public ApiResponse<CartResponse> removeCartItem(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long cartItemId) {
+        Long userId = userDetails.getUser().getId();
+        cartService.removeCartItem(userId, cartItemId);
+        CartResponse response = cartService.getCartDetailsByUserId(userId);
+        return ApiResponse.ok("Xóa sản phẩm khỏi giỏ hàng thành công", response);
     }
 }
