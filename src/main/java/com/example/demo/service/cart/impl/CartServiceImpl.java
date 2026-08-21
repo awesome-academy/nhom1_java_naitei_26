@@ -7,6 +7,7 @@ import com.example.demo.entity.cart.Cart;
 import com.example.demo.entity.cart.CartItem;
 import com.example.demo.entity.product.Product;
 import com.example.demo.entity.product.ProductImage;
+import com.example.demo.enums.product.ProductStatus;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.auth.UserRepository;
 import com.example.demo.repository.cart.CartItemRepository;
@@ -99,17 +100,30 @@ public class CartServiceImpl implements CartService {
             throw new IllegalArgumentException("Số lượng thêm vào giỏ phải lớn hơn 0");
         }
 
-        Cart cart = getOrCreateCartByUserId(userId);
-
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "id", productId));
 
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new IllegalArgumentException("Sản phẩm '" + product.getName() + "' hiện ngưng hoạt động hoặc không còn bán");
+        }
+
+        Cart cart = getOrCreateCartByUserId(userId);
         Optional<CartItem> existingCartItem = cartItemRepository.findByCartIdAndProductId(cart.getId(), productId);
+
+        int totalQuantity = quantity + existingCartItem.map(CartItem::getQuantity).orElse(0);
+        int currentStock = product.getStockQuantity() == null ? 0 : product.getStockQuantity();
+
+        if (totalQuantity > currentStock) {
+            throw new IllegalArgumentException(String.format(
+                    "Số lượng sản phẩm '%s' trong giỏ hàng (%d) vượt quá số lượng tồn kho hiện tại (%d)",
+                    product.getName(), totalQuantity, currentStock
+            ));
+        }
 
         CartItem cartItem;
         if (existingCartItem.isPresent()) {
             cartItem = existingCartItem.get();
-            cartItem.setQuantity(cartItem.getQuantity() + quantity);
+            cartItem.setQuantity(totalQuantity);
             cartItem.setUpdatedAt(OffsetDateTime.now());
         } else {
             cartItem = new CartItem();
@@ -132,8 +146,24 @@ public class CartServiceImpl implements CartService {
                 .orElseThrow(() -> new ResourceNotFoundException("CartItem không tồn tại hoặc không thuộc về người dùng có id: " + userId));
 
         if (quantity == null || quantity <= 0) {
-            cartItemRepository.delete(cartItem);
-            return null;
+            throw new IllegalArgumentException("Số lượng sản phẩm phải lớn hơn 0");
+        }
+
+        Product product = cartItem.getProduct();
+        if (product == null) {
+            throw new ResourceNotFoundException("Sản phẩm không tồn tại");
+        }
+
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new IllegalArgumentException("Sản phẩm '" + product.getName() + "' hiện ngưng hoạt động hoặc không còn bán");
+        }
+
+        int currentStock = product.getStockQuantity() == null ? 0 : product.getStockQuantity();
+        if (quantity > currentStock) {
+            throw new IllegalArgumentException(String.format(
+                    "Số lượng cập nhật (%d) vượt quá số lượng tồn kho hiện tại (%d) của sản phẩm '%s'",
+                    quantity, currentStock, product.getName()
+            ));
         }
 
         cartItem.setQuantity(quantity);
@@ -162,6 +192,40 @@ public class CartServiceImpl implements CartService {
     public void clearCart(Long userId) {           // xóa toàn bộ sản phẩm trong giỏ hàng của người dùng
         Cart cart = getOrCreateCartByUserId(userId);
         cartItemRepository.deleteByCartId(cart.getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void validateCart(Long userId) {
+        Cart cart = getOrCreateCartByUserId(userId);
+        List<CartItem> cartItems = cartItemRepository.findByCartId(cart.getId());
+
+        if (cartItems.isEmpty()) {
+            throw new IllegalArgumentException("Giỏ hàng của bạn đang trống");
+        }
+
+        for (CartItem item : cartItems) {
+            Product product = item.getProduct();
+            if (product == null) {
+                throw new ResourceNotFoundException("Sản phẩm trong giỏ hàng không tồn tại");
+            }
+
+            if (item.getQuantity() == null || item.getQuantity() <= 0) {
+                throw new IllegalArgumentException("Sản phẩm '" + product.getName() + "' có số lượng không hợp lệ trong giỏ hàng");
+            }
+
+            if (product.getStatus() != ProductStatus.ACTIVE) {
+                throw new IllegalArgumentException("Sản phẩm '" + product.getName() + "' hiện ngưng hoạt động hoặc không còn bán");
+            }
+
+            int currentStock = product.getStockQuantity() == null ? 0 : product.getStockQuantity();
+            if (item.getQuantity() > currentStock) {
+                throw new IllegalArgumentException(String.format(
+                        "Sản phẩm '%s' vượt quá tồn kho (trong giỏ: %d, tồn kho: %d)",
+                        product.getName(), item.getQuantity(), currentStock
+                ));
+            }
+        }
     }
 
     private Cart createNewCartForUser(User user) {              // tạo giỏ hàng mới cho người dùng

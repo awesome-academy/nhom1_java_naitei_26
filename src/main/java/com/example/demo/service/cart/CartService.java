@@ -68,4 +68,12 @@ public interface CartService {
      * @param userId ID của người dùng
      */
     void clearCart(Long userId);
+
+    /**
+     * Kiểm tra tính hợp lệ của giỏ hàng người dùng trước khi tiến hành đặt hàng.
+     * (Kiểm tra giỏ không rỗng, sản phẩm còn tồn tại, trạng thái ACTIVE, số lượng > 0 và không vượt quá tồn kho).
+     *
+     * @param userId ID của người dùng
+     */
+    void validateCart(Long userId);
 }

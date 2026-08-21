@@ -91,4 +91,17 @@ public class CartController {
         CartResponse response = cartService.getCartDetailsByUserId(userId);
         return ApiResponse.ok("Xóa sản phẩm khỏi giỏ hàng thành công", response);
     }
+
+    /**
+     * API kiểm tra tính hợp lệ của giỏ hàng hiện tại trước khi tiến hành đặt hàng.
+     *
+     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
+     * @return ApiResponse thông báo giỏ hàng hợp lệ
+     */
+    @GetMapping("/validate")
+    public ApiResponse<Void> validateCart(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getUser().getId();
+        cartService.validateCart(userId);
+        return ApiResponse.ok("Giỏ hàng hợp lệ để tiến hành đặt hàng", null);
+    }
 }
