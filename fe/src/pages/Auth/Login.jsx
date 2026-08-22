@@ -10,7 +10,11 @@ const Login = () => {
   const { login, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const redirectTo = location.state?.from?.pathname || "/";
+  // Nếu người dùng bị ProtectedRoute đá về đây (kể cả từ /admin/...), luôn quay lại đúng
+  // trang họ định vào. Chỉ khi vào /dang-nhap trực tiếp (không có "from") mới áp dụng
+  // mặc định riêng theo vai trò.
+  const fromPath = location.state?.from?.pathname;
+  const redirectTo = fromPath || "/";
 
   const [form, setForm] = useState({ email: "", password: "", remember: false });
   const [errors, setErrors] = useState({});
@@ -47,14 +51,17 @@ const Login = () => {
     e.preventDefault();
     if (!validate()) return;
     try {
-      await login(form);
+      const userSession = await login(form);
       await Swal.fire({
         icon: "success",
         title: "Đăng nhập thành công",
         timer: 1500,
         showConfirmButton: false,
       });
-      navigate(redirectTo, { replace: true });
+      // Không có "from" cụ thể: quản trị viên vào thẳng trang quản trị,
+      // khách hàng thường về trang chủ như cũ.
+      const target = fromPath || (userSession?.role === "ADMIN" ? "/admin" : "/");
+      navigate(target, { replace: true });
     } catch (err) {
       setErrors({ form: err.message });
     }
