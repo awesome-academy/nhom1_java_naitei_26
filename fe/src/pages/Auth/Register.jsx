@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import signupimage from "../../images/signup-g.svg";
@@ -7,8 +7,19 @@ import SocialAuthButtons from "../../components/SocialAuthButtons";
 import { useAuth } from "../../context/AuthContext";
 
 const Register = () => {
-  const { register, loading } = useAuth();
+  const { register, loading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+
+  // Nếu người dùng đã đăng nhập từ trước, tự động chuyển hướng theo Role
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "ADMIN") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const [form, setForm] = useState({
     firstName: "",

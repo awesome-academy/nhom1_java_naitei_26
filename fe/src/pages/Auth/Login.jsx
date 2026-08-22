@@ -7,18 +7,27 @@ import SocialAuthButtons from "../../components/SocialAuthButtons";
 import { useAuth } from "../../context/AuthContext";
 
 const Login = () => {
-  const { login, loading } = useAuth();
+  const { login, loading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  // Nếu người dùng bị ProtectedRoute đá về đây (kể cả từ /admin/...), luôn quay lại đúng
-  // trang họ định vào. Chỉ khi vào /dang-nhap trực tiếp (không có "from") mới áp dụng
-  // mặc định riêng theo vai trò.
+
   const fromPath = location.state?.from?.pathname;
   const redirectTo = fromPath || "/";
 
   const [form, setForm] = useState({ email: "", password: "", remember: false });
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+
+  // Nếu người dùng đã đăng nhập từ trước, tự động chuyển hướng theo Role
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "ADMIN") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -58,10 +67,16 @@ const Login = () => {
         timer: 1500,
         showConfirmButton: false,
       });
-      // Không có "from" cụ thể: quản trị viên vào thẳng trang quản trị,
-      // khách hàng thường về trang chủ như cũ.
-      const target = fromPath || (userSession?.role === "ADMIN" ? "/admin" : "/");
-      navigate(target, { replace: true });
+
+      // Role ADMIN -> vào trang quản trị /admin
+      // Role USER -> vào trang chủ / (hoặc route user trước đó nếu có)
+      if (userSession?.role === "ADMIN") {
+        const target = fromPath && fromPath.startsWith("/admin") ? fromPath : "/admin";
+        navigate(target, { replace: true });
+      } else {
+        const target = fromPath && !fromPath.startsWith("/admin") ? fromPath : "/";
+        navigate(target, { replace: true });
+      }
     } catch (err) {
       setErrors({ form: err.message });
     }

@@ -12,7 +12,7 @@ const ProtectedRoute = ({ children, requireRole }) => {
     return <Navigate to="/dang-nhap" state={{ from: location }} replace />;
   }
 
-  if (requireRole && user.role !== requireRole) {
+  if (requireRole && user?.role !== requireRole) {
     return <Navigate to="/" replace />;
   }
 
