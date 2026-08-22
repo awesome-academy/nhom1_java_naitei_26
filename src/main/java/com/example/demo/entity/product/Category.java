@@ -1,6 +1,7 @@
 package com.example.demo.entity.product;
 
 import com.example.demo.enums.product.CategoryStatus;
+import com.example.demo.enums.product.ProductType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -35,6 +36,10 @@ public class Category {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private CategoryStatus status = CategoryStatus.ACTIVE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "label", nullable = false, length = 10)
+    private ProductType label;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
