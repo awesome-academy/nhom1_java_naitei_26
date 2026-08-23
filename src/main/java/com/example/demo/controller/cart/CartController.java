@@ -5,9 +5,13 @@ import com.example.demo.dto.request.cart.AddToCartRequest;
 import com.example.demo.dto.request.cart.UpdateCartItemRequest;
 import com.example.demo.dto.response.cart.CartResponse;
 import com.example.demo.dto.response.common.ApiResponse;
+import com.example.demo.dto.request.order.CreateOrderRequest;
+import com.example.demo.dto.response.order.OrderResponse;
 import com.example.demo.service.cart.CartService;
+import com.example.demo.service.order.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -24,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CartController {
 
     private final CartService cartService;
+    private final OrderService orderService;
 
     /**
      * API xem giỏ hàng của người dùng hiện tại (Authenticated User).
@@ -103,5 +109,22 @@ public class CartController {
         Long userId = userDetails.getUser().getId();
         cartService.validateCart(userId);
         return ApiResponse.ok("Giỏ hàng hợp lệ để tiến hành đặt hàng", null);
+    }
+
+    /**
+     * API Checkout trực tiếp từ giỏ hàng hiện tại của người dùng.
+     *
+     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
+     * @param request DTO chứa thông tin nhận hàng
+     * @return ApiResponse chứa OrderResponse đơn hàng đã đặt
+     */
+    @PostMapping("/checkout")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<OrderResponse> checkoutFromCart(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody CreateOrderRequest request) {
+        Long userId = userDetails.getUser().getId();
+        OrderResponse response = orderService.createOrder(userId, request);
+        return ApiResponse.created("Đặt hàng từ giỏ hàng thành công", response);
     }
 }

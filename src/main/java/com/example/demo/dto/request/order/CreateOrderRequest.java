@@ -26,8 +26,18 @@ public class CreateOrderRequest {
     private String note;
 
     /**
-     * Danh sách sản phẩm muốn đặt.
-     * Nếu truyền null hoặc rỗng, hệ thống tự động tạo đơn từ giỏ hàng hiện tại của người dùng.
+     * Danh sách ID của các món hàng trong giỏ hàng (CartItem ID) được tích chọn để đặt.
+     */
+    private List<Long> cartItemIds;
+
+    /**
+     * Danh sách các món hàng tích chọn kèm số lượng cập nhật khi checkout.
+     */
+    private List<SelectedCartItemRequest> cartItems;
+
+    /**
+     * Danh sách sản phẩm đặt trực tiếp (productId + quantity).
+     * Nếu truyền null hoặc rỗng, hệ thống sẽ ưu tiên tạo đơn từ các món được tích chọn trong giỏ hàng.
      */
     private List<OrderItemRequest> items;
 }
