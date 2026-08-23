@@ -41,5 +41,18 @@ public class AdminOrderController {
         OrderResponse response = orderService.getOrderById(id);
         return ApiResponse.ok("Lấy chi tiết đơn hàng thành công", response);
     }
+
+    /**
+     * API Admin cập nhật trạng thái đơn hàng.
+     * PUT /api/admin/orders/{id}/status?status=CONFIRMED
+     */
+    @PutMapping("/{id}/status")
+    public ApiResponse<OrderResponse> updateOrderStatus(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        OrderResponse response = orderService.updateOrderStatus(id, status);
+        return ApiResponse.ok("Cập nhật trạng thái đơn hàng thành công", response);
+    }
 }
+
 
