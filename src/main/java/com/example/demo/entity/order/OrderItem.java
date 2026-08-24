@@ -1,5 +1,6 @@
 package com.example.demo.entity.order;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.example.demo.entity.product.Product;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,6 +36,7 @@ public class OrderItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
+    @JsonIgnore
     private CustomerOrder order;
 
     @ManyToOne(fetch = FetchType.LAZY)
