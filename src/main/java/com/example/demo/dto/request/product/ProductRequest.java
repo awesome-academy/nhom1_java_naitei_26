@@ -25,7 +25,26 @@ public class ProductRequest {
     @Size(max = 255, message = "Tên sản phẩm không được vượt quá 255 ký tự")
     private String name;
 
+    @NotBlank(message = "Slug sản phẩm không được để trống")
+    @Size(max = 255, message = "Slug sản phẩm không được vượt quá 255 ký tự")
+    private String slug;
+
+    private String brand;
+    private BigDecimal oldPrice;
+    private String unit;
+    private BigDecimal rating;
+    private Integer reviewCount;
+    private String badge;
+    private String shortDescription;
     private String description;
+
+    private String nutritionEnergy;
+    private String nutritionProtein;
+    private String nutritionFat;
+    private String nutritionCarb;
+    private String origin;
+    private String expiry;
+    private String storage;
 
     @NotNull(message = "Giá sản phẩm không được để trống")
     @DecimalMin(value = "0.0", inclusive = true, message = "Giá sản phẩm phải lớn hơn hoặc bằng 0")

@@ -55,6 +55,7 @@ public class ProductControllerTest {
         productRequest = new ProductRequest();
         productRequest.setCategoryId(1L);
         productRequest.setName("Apple Juice");
+        productRequest.setSlug("apple-juice");
         productRequest.setDescription("Fresh apple juice");
         productRequest.setPrice(new BigDecimal("3.50"));
         productRequest.setStockQuantity(50);

@@ -50,8 +50,10 @@ public class CategoryControllerTest {
     void setUp() {
         categoryRequest = new CategoryRequest();
         categoryRequest.setName("Food Category");
+        categoryRequest.setSlug("food-category");
         categoryRequest.setDescription("Tasty foods");
         categoryRequest.setStatus(CategoryStatus.ACTIVE);
+        categoryRequest.setLabel(com.example.demo.enums.product.ProductType.FOOD);
 
         categoryResponse = CategoryResponse.builder()
                 .id(1L)

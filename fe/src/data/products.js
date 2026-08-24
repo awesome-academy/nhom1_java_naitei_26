@@ -643,7 +643,81 @@ export const SEED_REVIEWS = [
   },
 ];
 
-// ---- API giả lập ----
+// ---- API Integration & Helper Functions ----
+
+export function mapApiProductToFrontend(p) {
+  if (!p) return null;
+  return {
+    id: p.id,
+    name: p.name,
+    slug: p.slug,
+    type: p.type ? p.type.toLowerCase() : "food",
+    category: p.categorySlug,
+    categoryName: p.categoryName,
+    brand: p.brand,
+    price: p.price,
+    oldPrice: p.oldPrice,
+    unit: p.unit,
+    stock: p.stockQuantity,
+    rating: p.rating || 0.0,
+    reviewCount: p.reviewCount || 0,
+    badge: p.badge,
+    images: p.images && p.images.length > 0 ? p.images : ["/images/default.jpg"],
+    shortDescription: p.shortDescription,
+    description: p.description,
+    nutrition: {
+      energy: p.nutritionEnergy,
+      protein: p.nutritionProtein,
+      fat: p.nutritionFat,
+      carb: p.nutritionCarb
+    },
+    origin: p.origin,
+    expiry: p.expiry,
+    storage: p.storage
+  };
+}
+
+export async function initializeProducts() {
+  try {
+    const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+    
+    // 1. Fetch categories
+    const catRes = await fetch(`${API_BASE_URL}/api/categories`);
+    if (catRes.ok) {
+      const catData = await catRes.json();
+      if (catData.data && catData.data.length > 0) {
+        CATEGORIES.length = 0;
+        catData.data.forEach(c => {
+          CATEGORIES.push({
+            id: c.id,
+            slug: c.slug,
+            name: c.name,
+            type: c.label ? c.label.toLowerCase() : "food"
+          });
+        });
+      }
+    }
+
+    // 2. Fetch products
+    const prodRes = await fetch(`${API_BASE_URL}/api/products?size=1000`);
+    if (prodRes.ok) {
+      const prodData = await prodRes.json();
+      if (prodData.data && prodData.data.content) {
+        PRODUCTS.length = 0;
+        prodData.data.content.forEach(p => {
+          PRODUCTS.push(mapApiProductToFrontend(p));
+        });
+        
+        // Recalculate PRICE_MAX
+        if (PRODUCTS.length > 0) {
+          PRICE_MAX = Math.max(...PRODUCTS.map((p) => p.price));
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Failed to initialize products from API, falling back to local seed data", err);
+  }
+}
 
 export function getAllProducts() {
   return PRODUCTS;
@@ -681,6 +755,6 @@ export function getBrands() {
 }
 
 export const PRICE_MIN = 0;
-export const PRICE_MAX = Math.max(...PRODUCTS.map((p) => p.price));
+export let PRICE_MAX = Math.max(...PRODUCTS.map((p) => p.price));
 
 export default PRODUCTS;
