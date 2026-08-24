@@ -1,6 +1,7 @@
 package com.example.demo.controller.order;
 
 import com.example.demo.config.security.CustomUserDetails;
+import com.example.demo.dto.request.order.BuyNowRequest;
 import com.example.demo.dto.request.order.CreateOrderRequest;
 import com.example.demo.dto.response.common.ApiResponse;
 import com.example.demo.dto.response.order.OrderResponse;
@@ -8,15 +9,12 @@ import com.example.demo.service.order.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,7 +28,7 @@ public class UserOrderController {
     private final OrderService orderService;
 
     /**
-     * API Checkout - Đặt hàng từ giỏ hàng hoặc danh sách sản phẩm chỉ định.
+     * API Checkout - Đặt hàng từ giỏ hàng.
      *
      * @param userDetails Thông tin User đang đăng nhập
      * @param request DTO chứa thông tin nhận hàng (tên, SĐT, địa chỉ, ghi chú...)
@@ -44,6 +42,23 @@ public class UserOrderController {
         Long userId = userDetails.getUser().getId();
         OrderResponse response = orderService.createOrder(userId, request);
         return ApiResponse.created("Đặt hàng thành công", response);
+    }
+
+    /**
+     * API Buy Now - Đặt mua trực tiếp một sản phẩm mà không qua giỏ hàng.
+     *
+     * @param userDetails Thông tin User đang đăng nhập
+     * @param request DTO chứa productId, quantity và thông tin giao hàng
+     * @return ApiResponse chứa OrderResponse chi tiết đơn hàng vừa đặt thành công
+     */
+    @PostMapping("/buy-now")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<OrderResponse> buyNow(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody BuyNowRequest request) {
+        Long userId = userDetails.getUser().getId();
+        OrderResponse response = orderService.buyNow(userId, request);
+        return ApiResponse.created("Đặt hàng mua ngay thành công", response);
     }
 
     /**
