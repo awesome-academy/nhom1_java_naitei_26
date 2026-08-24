@@ -1,5 +1,6 @@
 package com.example.demo.service.user.impl;
 
+import com.example.demo.dto.request.user.UpdateUserProfileRequest;
 import com.example.demo.dto.response.user.UserProfileResponse;
 import com.example.demo.entity.auth.User;
 import com.example.demo.enums.auth.UserRole;
@@ -20,7 +21,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,28 +35,28 @@ class UserServiceImplTest {
     @InjectMocks
     private UserServiceImpl userService;
 
-    private User sampleUser;
+    private User mockUser;
 
     @BeforeEach
     void setUp() {
-        sampleUser = new User();
-        sampleUser.setId(1L);
-        sampleUser.setEmail("hung@example.com");
-        sampleUser.setPasswordHash("hashed_password");
-        sampleUser.setFullName("Nguyen Duy Hung");
-        sampleUser.setPhone("0987654321");
-        sampleUser.setAddress("Hanoi, Vietnam");
-        sampleUser.setAvatarUrl("https://example.com/avatar.jpg");
-        sampleUser.setRole(UserRole.USER);
-        sampleUser.setStatus(UserStatus.ACTIVE);
-        sampleUser.setCreatedAt(OffsetDateTime.now());
-        sampleUser.setUpdatedAt(OffsetDateTime.now());
+        mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setEmail("hung@example.com");
+        mockUser.setPasswordHash("hashed_password");
+        mockUser.setFullName("Nguyen Duy Hung");
+        mockUser.setPhone("0912345678");
+        mockUser.setAddress("Ha Noi");
+        mockUser.setAvatarUrl("https://example.com/avatar.jpg");
+        mockUser.setRole(UserRole.USER);
+        mockUser.setStatus(UserStatus.ACTIVE);
+        mockUser.setCreatedAt(OffsetDateTime.now());
+        mockUser.setUpdatedAt(OffsetDateTime.now());
     }
 
     @Test
-    @DisplayName("Lấy profile thành công khi User ID tồn tại")
+    @DisplayName("Lấy profile thành công theo userId")
     void getCurrentUserProfile_Success() {
-        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleUser));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
 
         UserProfileResponse response = userService.getCurrentUserProfile(1L);
 
@@ -62,33 +64,69 @@ class UserServiceImplTest {
         assertEquals(1L, response.getId());
         assertEquals("hung@example.com", response.getEmail());
         assertEquals("Nguyen Duy Hung", response.getFullName());
-        assertEquals("0987654321", response.getPhone());
-        assertEquals("Hanoi, Vietnam", response.getAddress());
-        assertEquals("https://example.com/avatar.jpg", response.getAvatarUrl());
+        assertEquals("0912345678", response.getPhone());
+        assertEquals("Ha Noi", response.getAddress());
         assertEquals("USER", response.getRole());
         assertEquals("ACTIVE", response.getStatus());
-
-        verify(userRepository, times(1)).findById(1L);
+        verify(userRepository).findById(1L);
     }
 
     @Test
-    @DisplayName("Ném ResourceNotFoundException khi User ID không tồn tại")
-    void getCurrentUserProfile_NotFound_ThrowsException() {
+    @DisplayName("Lấy profile ném ResourceNotFoundException khi không tìm thấy userId")
+    void getCurrentUserProfile_NotFound() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> userService.getCurrentUserProfile(99L));
-        verify(userRepository, times(1)).findById(99L);
+        verify(userRepository).findById(99L);
     }
 
     @Test
-    @DisplayName("Lấy profile thành công khi Email tồn tại")
+    @DisplayName("Lấy profile thành công theo email")
     void getCurrentUserProfileByEmail_Success() {
-        when(userRepository.findByEmail("hung@example.com")).thenReturn(Optional.of(sampleUser));
+        when(userRepository.findByEmail("hung@example.com")).thenReturn(Optional.of(mockUser));
 
         UserProfileResponse response = userService.getCurrentUserProfileByEmail("hung@example.com");
 
         assertNotNull(response);
         assertEquals("hung@example.com", response.getEmail());
-        verify(userRepository, times(1)).findByEmail("hung@example.com");
+        verify(userRepository).findByEmail("hung@example.com");
+    }
+
+    @Test
+    @DisplayName("Cập nhật profile thành công với dữ liệu hợp lệ")
+    void updateUserProfile_Success() {
+        UpdateUserProfileRequest request = UpdateUserProfileRequest.builder()
+                .fullName("Nguyen Duy Hung Updated")
+                .phone("0987654321")
+                .address("Da Nang")
+                .avatarUrl("https://example.com/new-avatar.jpg")
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserProfileResponse response = userService.updateUserProfile(1L, request);
+
+        assertNotNull(response);
+        assertEquals("Nguyen Duy Hung Updated", response.getFullName());
+        assertEquals("0987654321", response.getPhone());
+        assertEquals("Da Nang", response.getAddress());
+        assertEquals("https://example.com/new-avatar.jpg", response.getAvatarUrl());
+        verify(userRepository).findById(1L);
+        verify(userRepository).save(mockUser);
+    }
+
+    @Test
+    @DisplayName("Cập nhật profile ném ResourceNotFoundException khi userId không tồn tại")
+    void updateUserProfile_UserNotFound() {
+        UpdateUserProfileRequest request = UpdateUserProfileRequest.builder()
+                .fullName("Test Name")
+                .build();
+
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.updateUserProfile(99L, request));
+        verify(userRepository).findById(99L);
+        verify(userRepository, never()).save(any(User.class));
     }
 }
