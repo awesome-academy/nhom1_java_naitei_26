@@ -149,6 +149,25 @@ export function AuthProvider({ children }) {
     persist(null);
   };
 
+  const getProfile = async () => {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (!token) throw new Error("Chưa đăng nhập");
+
+    const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok || (data.status && data.status >= 400)) {
+      throw new Error(data.message || "Không thể lấy thông tin hồ sơ");
+    }
+    return data.data;
+  };
+
   const updateProfile = (patch) => {
     if (!user) return null;
     const next = { ...user, ...patch };
@@ -168,6 +187,7 @@ export function AuthProvider({ children }) {
       login,
       loginWithProvider,
       logout,
+      getProfile,
       updateProfile,
       persistUserSession,
     }),
