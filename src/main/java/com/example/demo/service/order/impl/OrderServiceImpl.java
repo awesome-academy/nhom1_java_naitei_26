@@ -1,5 +1,6 @@
 package com.example.demo.service.order.impl;
 
+import com.example.demo.dto.request.order.BuyNowRequest;
 import com.example.demo.dto.request.order.CreateOrderRequest;
 import com.example.demo.dto.request.order.OrderItemRequest;
 import com.example.demo.dto.request.order.SelectedCartItemRequest;
@@ -58,25 +59,8 @@ public class OrderServiceImpl implements OrderService {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
-        if (request.getItems() != null && !request.getItems().isEmpty()) {
-            // Trường hợp 1: Tạo đơn hàng từ danh sách sản phẩm đặt trực tiếp
-            for (OrderItemRequest itemReq : request.getItems()) {
-                Product product = productRepository.findById(itemReq.getProductId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.getProductId()));
-
-                validateProductAvailability(product, itemReq.getQuantity());
-
-                BigDecimal unitPrice = product.getPrice();
-                BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
-
-                OrderItem orderItem = createOrderItem(product, itemReq.getQuantity(), unitPrice, subtotal);
-                order.addItem(orderItem);
-                totalAmount = totalAmount.add(subtotal);
-
-                deductProductStock(product, itemReq.getQuantity());
-            }
-        } else if (request.getCartItems() != null && !request.getCartItems().isEmpty()) {
-            // Trường hợp 2: Tích chọn sản phẩm trong giỏ VÀ cập nhật số lượng khi checkout
+        if (request.getCartItems() != null && !request.getCartItems().isEmpty()) {
+            // Trường hợp 1: Tích chọn sản phẩm trong giỏ VÀ cập nhật số lượng khi checkout
             Map<Long, Integer> quantityMap = new HashMap<>();
             List<Long> cartItemIds = new ArrayList<>();
 
@@ -111,7 +95,7 @@ public class OrderServiceImpl implements OrderService {
             // Xóa duy nhất các sản phẩm đã tích chọn khỏi giỏ hàng
             cartItemRepository.deleteAll(selectedItems);
         } else if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
-            // Trường hợp 3: Tích chọn danh sách món trong giỏ hàng (giữ số lượng giỏ hàng hiện tại)
+            // Trường hợp 2: Tích chọn danh sách món trong giỏ hàng (giữ số lượng giỏ hàng hiện tại)
             List<CartItem> selectedItems = cartItemRepository.findByIdInAndCartUserId(request.getCartItemIds(), userId);
             if (selectedItems.isEmpty()) {
                 throw new IllegalArgumentException("Không tìm thấy các sản phẩm đã chọn trong giỏ hàng");
@@ -136,7 +120,7 @@ public class OrderServiceImpl implements OrderService {
             // Xóa duy nhất các sản phẩm đã tích chọn khỏi giỏ hàng
             cartItemRepository.deleteAll(selectedItems);
         } else {
-            // Trường hợp 4: Mặc định checkout toàn bộ giỏ hàng
+            // Trường hợp 3: Mặc định checkout toàn bộ giỏ hàng
             cartService.validateCart(userId);
             List<CartItem> cartItems = cartService.getCartItemsByUserId(userId);
 
@@ -178,11 +162,46 @@ public class OrderServiceImpl implements OrderService {
                 "🛒 Đơn hàng mới #%d - Khách hàng: %s - Tổng tiền: %s đ",
                 order.getId(), customerName, order.getTotalAmount().toPlainString());
         slackNotificationService.sendMessage(message);
+
+    @Override
+    @Transactional
+    public OrderResponse buyNow(Long userId, BuyNowRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        Product product = productRepository.findById(request.getProductId())
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", request.getProductId()));
+
+        validateProductAvailability(product, request.getQuantity());
+
+        CustomerOrder order = new CustomerOrder();
+        order.setUser(user);
+        order.setRecipientName(request.getRecipientName());
+        order.setRecipientPhone(request.getRecipientPhone());
+        order.setDeliveryAddress(request.getDeliveryAddress());
+        order.setNote(request.getNote());
+        order.setStatus(OrderStatus.PENDING);
+
+        BigDecimal unitPrice = product.getPrice();
+        BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(request.getQuantity()));
+
+        OrderItem orderItem = createOrderItem(product, request.getQuantity(), unitPrice, subtotal);
+        order.addItem(orderItem);
+        order.setTotalAmount(subtotal);
+
+        deductProductStock(product, request.getQuantity());
+
+        CustomerOrder savedOrder = orderRepository.save(order);
+        return mapToOrderResponse(savedOrder);
+
     }
 
     private void validateProductAvailability(Product product, int quantity) {
         if (product == null) {
             throw new ResourceNotFoundException("Sản phẩm không tồn tại");
+        }
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Số lượng đặt mua phải lớn hơn 0");
         }
         if (product.getStatus() != ProductStatus.ACTIVE) {
             throw new IllegalArgumentException("Sản phẩm '" + product.getName() + "' hiện ngưng hoạt động");
@@ -205,6 +224,9 @@ public class OrderServiceImpl implements OrderService {
 
     private void deductProductStock(Product product, int quantity) {
         int currentStock = product.getStockQuantity() == null ? 0 : product.getStockQuantity();
+        if (currentStock < quantity) {
+            throw new IllegalArgumentException("Số lượng tồn kho không đủ để thực hiện giao dịch");
+        }
         product.setStockQuantity(currentStock - quantity);
         productRepository.save(product);
     }

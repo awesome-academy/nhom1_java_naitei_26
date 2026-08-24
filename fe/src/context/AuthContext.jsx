@@ -149,6 +149,51 @@ export function AuthProvider({ children }) {
     persist(null);
   };
 
+  const getProfile = async () => {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (!token) throw new Error("Chưa đăng nhập");
+
+    const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok || (data.status && data.status >= 400)) {
+      throw new Error(data.message || "Không thể lấy thông tin hồ sơ");
+    }
+    return data.data;
+  };
+
+  const updateProfileApi = async (profileData) => {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (!token) throw new Error("Chưa đăng nhập. Vui lòng đăng nhập lại!");
+
+    const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(profileData),
+    });
+
+    const data = await res.json();
+    if (!res.ok || (data.status && data.status >= 400)) {
+      throw new Error(data.message || "Không thể cập nhật hồ sơ");
+    }
+
+    // Cập nhật lại thông tin user trong state và session localStorage
+    if (data.data) {
+      const nextUser = { ...user, ...data.data };
+      persist(nextUser);
+    }
+    return data.data;
+  };
+
   const updateProfile = (patch) => {
     if (!user) return null;
     const next = { ...user, ...patch };
@@ -168,7 +213,9 @@ export function AuthProvider({ children }) {
       login,
       loginWithProvider,
       logout,
+      getProfile,
       updateProfile,
+      updateProfileApi,
       persistUserSession,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps

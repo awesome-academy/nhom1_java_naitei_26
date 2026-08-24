@@ -34,8 +34,20 @@ const AccountSidebar = () => {
   return (
     <div className="card">
       <div className="card-body">
-        <div className="d-flex align-items-center gap-2 mb-3 pb-3 border-bottom">
-          <i className="fas fa-user-circle fs-2 text-muted" />
+        <div className="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom">
+          {user?.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt="Avatar"
+              className="rounded-circle object-fit-cover shadow-sm flex-shrink-0"
+              style={{ width: 44, height: 44 }}
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          ) : (
+            <i className="fas fa-user-circle fs-2 text-muted flex-shrink-0" />
+          )}
           <div className="text-truncate">
             <div className="fw-semibold text-truncate">{user?.fullName || user?.email}</div>
             <div className="small text-muted text-truncate">{user?.email}</div>
