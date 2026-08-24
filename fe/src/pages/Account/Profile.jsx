@@ -6,11 +6,12 @@ import AccountSidebar from "../../components/AccountSidebar";
 import { useAuth } from "../../context/AuthContext";
 
 const Profile = () => {
-  const { user, getProfile, updateProfile } = useAuth();
+  const { user, getProfile, updateProfileApi } = useAuth();
   const fileInputRef = useRef(null);
 
   const [profileData, setProfileData] = useState(null);
   const [fetching, setFetching] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [fetchError, setFetchError] = useState(null);
 
   const [form, setForm] = useState({
@@ -21,7 +22,7 @@ const Profile = () => {
   });
   const [errors, setErrors] = useState({});
 
-  // Gọi API lấy thông tin Profile chi tiết từ Backend
+  // Gọi API lấy thông tin Profile chi tiết từ Backend khi load trang
   useEffect(() => {
     let isMounted = true;
     const loadProfile = async () => {
@@ -60,25 +61,84 @@ const Profile = () => {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getProfile]);
+
+  // Hàm validate từng trường đơn lẻ để bắt lỗi ngay khi người dùng gõ
+  const validateField = (name, value) => {
+    switch (name) {
+      case "fullName":
+        if (!value || !value.trim()) {
+          return "Vui lòng nhập họ và tên.";
+        }
+        if (value.trim().length > 100) {
+          return "Họ và tên không được vượt quá 100 ký tự.";
+        }
+        return undefined;
+
+      case "phone":
+        if (value && value.trim()) {
+          const cleanPhone = value.trim();
+          if (!/^0\d{9}$/.test(cleanPhone)) {
+            return "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng số 0.";
+          }
+        }
+        return undefined;
+
+      case "address":
+        if (value && value.trim().length > 255) {
+          return "Địa chỉ không được vượt quá 255 ký tự.";
+        }
+        return undefined;
+
+      default:
+        return undefined;
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: undefined }));
+
+    // Bắt validate tức thì ngay khi gõ
+    const fieldError = validateField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: fieldError }));
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    const fieldError = validateField(name, value);
+    setErrors((prev) => ({ ...prev, [name]: fieldError }));
   };
 
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Kiểm tra dung lượng file tối đa 1 MB
       if (file.size > 1024 * 1024) {
         Swal.fire({
           icon: "warning",
           title: "Ảnh quá lớn",
-          text: "Dung lượng ảnh tối đa là 1 MB. Vui lòng chọn ảnh khác!",
+          text: "Dung lượng file tối đa là 1 MB. Vui lòng chọn ảnh khác!",
+          confirmButtonColor: "#198754",
         });
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
+
+      // Kiểm tra định dạng file
+      const validTypes = ["image/jpeg", "image/png", "image/jpg"];
+      if (!validTypes.includes(file.type)) {
+        Swal.fire({
+          icon: "warning",
+          title: "Định dạng không hợp lệ",
+          text: "Chỉ chấp nhận định dạng ảnh .JPEG hoặc .PNG!",
+          confirmButtonColor: "#198754",
+        });
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const dataUrl = event.target?.result;
@@ -91,35 +151,82 @@ const Profile = () => {
   };
 
   const validate = () => {
-    const next = {};
-    if (!form.fullName.trim()) next.fullName = "Vui lòng nhập họ tên.";
-    if (form.phone && !/^0\d{9}$/.test(form.phone))
-      next.phone = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0.";
+    const next = {
+      fullName: validateField("fullName", form.fullName),
+      phone: validateField("phone", form.phone),
+      address: validateField("address", form.address),
+    };
+
+    // Lọc bỏ các trường không có lỗi
+    Object.keys(next).forEach((key) => {
+      if (!next[key]) delete next[key];
+    });
+
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
 
-    updateProfile({
-      fullName: form.fullName.trim(),
-      phone: form.phone.trim(),
-      address: form.address.trim(),
-      avatarUrl: form.avatarUrl,
-    });
+    // 1. Kiểm tra validation ngay ở Frontend
+    if (!validate()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Thông tin chưa hợp lệ",
+        text: "Vui lòng kiểm tra và sửa lại các trường bị báo lỗi trước khi lưu!",
+        confirmButtonColor: "#198754",
+      });
+      return;
+    }
 
-    Swal.fire({
-      icon: "success",
-      title: "Cập nhật hồ sơ thành công",
-      timer: 1500,
-      showConfirmButton: false,
-    });
+    setSaving(true);
+    try {
+      // 2. Gửi request cập nhật lên Backend API
+      const payload = {
+        fullName: form.fullName.trim(),
+        phone: form.phone && form.phone.trim() ? form.phone.trim() : null,
+        address: form.address && form.address.trim() ? form.address.trim() : null,
+        avatarUrl: form.avatarUrl || null,
+      };
+
+      const updated = await updateProfileApi(payload);
+
+      // Cập nhật lại UI với dữ liệu mới nhận được từ BE
+      if (updated) {
+        setProfileData(updated);
+        setForm((prev) => ({
+          ...prev,
+          fullName: updated.fullName || "",
+          phone: updated.phone || "",
+          address: updated.address || "",
+          avatarUrl: updated.avatarUrl || "",
+        }));
+      }
+
+      // Thông báo thành công
+      Swal.fire({
+        icon: "success",
+        title: "Thành công!",
+        text: "Cập nhật hồ sơ thành công.",
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      console.error("Lỗi khi cập nhật hồ sơ:", err);
+      // 3. Hiển thị thông báo lỗi chi tiết khi Backend từ chối hoặc DB không lưu
+      Swal.fire({
+        icon: "error",
+        title: "Cập nhật thất bại",
+        text: err.message || "Đã xảy ra lỗi khi lưu thông tin. Vui lòng thử lại!",
+        confirmButtonColor: "#dc3545",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const displayAvatar = form.avatarUrl || profileData?.avatarUrl;
-  const initialLetter = (form.fullName || user?.email || "U").charAt(0).toUpperCase();
 
   return (
     <div>
@@ -214,10 +321,12 @@ const Profile = () => {
                                 style={{ borderRadius: 6, padding: "0.55rem 0.85rem" }}
                                 value={form.fullName}
                                 onChange={handleChange}
+                                onBlur={handleBlur}
                                 placeholder="Nhập họ và tên"
+                                disabled={saving}
                               />
                               {errors.fullName && (
-                                <div className="invalid-feedback">{errors.fullName}</div>
+                                <div className="invalid-feedback d-block">{errors.fullName}</div>
                               )}
                             </div>
                           </div>
@@ -239,10 +348,12 @@ const Profile = () => {
                                 style={{ borderRadius: 6, padding: "0.55rem 0.85rem" }}
                                 value={form.phone}
                                 onChange={handleChange}
-                                placeholder="Nhập số điện thoại"
+                                onBlur={handleBlur}
+                                placeholder="Nhập số điện thoại (10 chữ số)"
+                                disabled={saving}
                               />
                               {errors.phone && (
-                                <div className="invalid-feedback">{errors.phone}</div>
+                                <div className="invalid-feedback d-block">{errors.phone}</div>
                               )}
                             </div>
                           </div>
@@ -260,12 +371,17 @@ const Profile = () => {
                                 id="address"
                                 name="address"
                                 rows={3}
-                                className="form-control"
+                                className={`form-control ${errors.address ? "is-invalid" : ""}`}
                                 style={{ borderRadius: 6, padding: "0.55rem 0.85rem" }}
                                 value={form.address}
                                 onChange={handleChange}
+                                onBlur={handleBlur}
                                 placeholder="Nhập địa chỉ nhận hàng mặc định"
+                                disabled={saving}
                               />
+                              {errors.address && (
+                                <div className="invalid-feedback d-block">{errors.address}</div>
+                              )}
                               <div className="text-muted small mt-1" style={{ fontSize: "0.8rem" }}>
                                 Địa chỉ này sẽ được dùng mặc định khi thanh toán đơn hàng.
                               </div>
@@ -276,10 +392,18 @@ const Profile = () => {
                             <div className="col-sm-9 offset-sm-3">
                               <button
                                 type="submit"
-                                className="btn btn-primary px-4 py-2 fw-semibold"
-                                style={{ minWidth: 100, borderRadius: 6 }}
+                                className="btn btn-primary px-4 py-2 fw-semibold d-inline-flex align-items-center justify-content-center gap-2"
+                                style={{ minWidth: 110, borderRadius: 6 }}
+                                disabled={saving}
                               >
-                                Lưu
+                                {saving ? (
+                                  <>
+                                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                                    Đang lưu...
+                                  </>
+                                ) : (
+                                  "Lưu"
+                                )}
                               </button>
                             </div>
                           </div>
@@ -316,6 +440,7 @@ const Profile = () => {
                             className="d-none"
                             accept=".jpg,.jpeg,.png"
                             onChange={handleAvatarChange}
+                            disabled={saving}
                           />
 
                           <button
@@ -323,6 +448,7 @@ const Profile = () => {
                             className="btn btn-outline-secondary btn-sm px-3 py-1 mb-3 bg-white"
                             style={{ borderRadius: 6 }}
                             onClick={() => fileInputRef.current?.click()}
+                            disabled={saving}
                           >
                             Chọn Ảnh
                           </button>
