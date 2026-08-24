@@ -74,31 +74,5 @@ public class OrderController {
         OrderResponse response = orderService.getOrderByIdAndUserId(id, userId);
         return ApiResponse.ok("Lấy chi tiết đơn hàng thành công", response);
     }
-
-    /**
-     * API quản trị viên (Admin) xem tất cả đơn hàng trong hệ thống.
-     *
-     * @return ApiResponse chứa danh sách toàn bộ đơn hàng
-     */
-    @GetMapping("/admin/all")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<List<OrderResponse>> getAllOrdersForAdmin() {
-        List<OrderResponse> response = orderService.getAllOrders();
-        return ApiResponse.ok("Lấy toàn bộ đơn hàng hệ thống thành công", response);
-    }
-
-    /**
-     * API cập nhật trạng thái đơn hàng (dành cho Admin hoặc người dùng hủy đơn).
-     *
-     * @param id ID của đơn hàng
-     * @param status Trạng thái mới
-     * @return ApiResponse chứa đơn hàng sau khi cập nhật
-     */
-    @PutMapping("/{id}/status")
-    public ApiResponse<OrderResponse> updateOrderStatus(
-            @PathVariable Long id,
-            @RequestParam String status) {
-        OrderResponse response = orderService.updateOrderStatus(id, status);
-        return ApiResponse.ok("Cập nhật trạng thái đơn hàng thành công", response);
-    }
 }
+
