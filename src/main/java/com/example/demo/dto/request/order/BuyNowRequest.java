@@ -1,18 +1,25 @@
 package com.example.demo.dto.request.order;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
-
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateOrderRequest {
+public class BuyNowRequest {
+
+    @NotNull(message = "Product ID cannot be null")
+    private Long productId;
+
+    @NotNull(message = "Quantity cannot be null")
+    @Min(value = 1, message = "Quantity must be at least 1")
+    private Integer quantity;
 
     @NotBlank(message = "Recipient name is required")
     private String recipientName;
@@ -24,14 +31,4 @@ public class CreateOrderRequest {
     private String deliveryAddress;
 
     private String note;
-
-    /**
-     * Danh sách ID của các món hàng trong giỏ hàng (CartItem ID) được tích chọn để đặt.
-     */
-    private List<Long> cartItemIds;
-
-    /**
-     * Danh sách các món hàng tích chọn kèm số lượng cập nhật khi checkout.
-     */
-    private List<SelectedCartItemRequest> cartItems;
 }

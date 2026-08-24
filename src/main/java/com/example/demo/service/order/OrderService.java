@@ -1,5 +1,6 @@
 package com.example.demo.service.order;
 
+import com.example.demo.dto.request.order.BuyNowRequest;
 import com.example.demo.dto.request.order.CreateOrderRequest;
 import com.example.demo.dto.response.order.OrderResponse;
 import com.example.demo.entity.order.CustomerOrder;
@@ -16,6 +17,15 @@ public interface OrderService {
      * @return OrderResponse chi tiết đơn hàng vừa tạo
      */
     OrderResponse createOrder(Long userId, CreateOrderRequest request);
+
+    /**
+     * Đặt mua trực tiếp một sản phẩm (Buy Now) mà không cần qua giỏ hàng.
+     *
+     * @param userId ID của người dùng đặt hàng
+     * @param request DTO chứa thông tin sản phẩm và địa chỉ nhận hàng
+     * @return OrderResponse chi tiết đơn hàng vừa tạo
+     */
+    OrderResponse buyNow(Long userId, BuyNowRequest request);
 
     /**
      * Lấy thông tin đơn hàng theo ID.
