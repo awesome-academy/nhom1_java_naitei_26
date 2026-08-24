@@ -162,6 +162,7 @@ public class OrderServiceImpl implements OrderService {
                 "🛒 Đơn hàng mới #%d - Khách hàng: %s - Tổng tiền: %s đ",
                 order.getId(), customerName, order.getTotalAmount().toPlainString());
         slackNotificationService.sendMessage(message);
+    }
 
     @Override
     @Transactional
