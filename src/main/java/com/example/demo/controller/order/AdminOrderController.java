@@ -32,4 +32,14 @@ public class AdminOrderController {
         return ApiResponse.ok("Lấy toàn bộ đơn hàng hệ thống thành công", response);
     }
 
+    /**
+     * API Admin xem chi tiết một đơn hàng theo ID.
+     * GET /api/admin/orders/{id}
+     */
+    @GetMapping("/{id}")
+    public ApiResponse<OrderResponse> getOrderById(@PathVariable Long id) {
+        OrderResponse response = orderService.getOrderById(id);
+        return ApiResponse.ok("Lấy chi tiết đơn hàng thành công", response);
+    }
 }
+
