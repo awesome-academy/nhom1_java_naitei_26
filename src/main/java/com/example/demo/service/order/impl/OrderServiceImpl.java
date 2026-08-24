@@ -18,6 +18,7 @@ import com.example.demo.repository.cart.CartItemRepository;
 import com.example.demo.repository.order.CustomerOrderRepository;
 import com.example.demo.repository.product.ProductRepository;
 import com.example.demo.service.cart.CartService;
+import com.example.demo.service.notification.SlackNotificationService;
 import com.example.demo.service.order.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class OrderServiceImpl implements OrderService {
     private final ProductRepository productRepository;
     private final CartItemRepository cartItemRepository;
     private final CartService cartService;
+    private final SlackNotificationService slackNotificationService;
 
     @Override
     @Transactional
@@ -165,7 +167,17 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(totalAmount);
         CustomerOrder savedOrder = orderRepository.save(order);
 
+        notifyNewOrderOnSlack(savedOrder);
+
         return mapToOrderResponse(savedOrder);
+    }
+
+    private void notifyNewOrderOnSlack(CustomerOrder order) {
+        String customerName = order.getUser() != null ? order.getUser().getFullName() : order.getRecipientName();
+        String message = String.format(
+                "🛒 Đơn hàng mới #%d - Khách hàng: %s - Tổng tiền: %s đ",
+                order.getId(), customerName, order.getTotalAmount().toPlainString());
+        slackNotificationService.sendMessage(message);
     }
 
     private void validateProductAvailability(Product product, int quantity) {
