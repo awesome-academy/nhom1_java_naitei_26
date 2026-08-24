@@ -4,6 +4,7 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import AdminSidebar from "../components/admin/AdminSidebar";
 import AdminTopbar from "../components/admin/AdminTopbar";
 import { getOrderStats } from "../data/adminOrders";
+import { getSuggestionStats } from "../data/suggestions";
 import { STORE_CHANGED_EVENT } from "../data/localStore";
 import "../pages/Admin/admin.css";
 
@@ -19,8 +20,8 @@ const AdminLayout = () => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Số đơn chờ xác nhận hiển thị trên menu; tính lại khi chuyển trang
-  // và mỗi khi có trang con ghi dữ liệu (ví dụ vừa duyệt một đơn).
+  // Số đơn chờ xác nhận và số đề xuất chờ duyệt hiển thị trên menu; tính lại khi
+  // chuyển trang và mỗi khi có trang con ghi dữ liệu (ví dụ vừa duyệt một đơn).
   const [storeVersion, setStoreVersion] = useState(0);
 
   useEffect(() => {
@@ -30,7 +31,10 @@ const AdminLayout = () => {
   }, []);
 
   const badges = useMemo(
-    () => ({ pendingOrders: getOrderStats().pending }),
+    () => ({
+      pendingOrders: getOrderStats().pending,
+      pendingSuggestions: getSuggestionStats().pending,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [location.pathname, storeVersion]
   );
