@@ -47,7 +47,7 @@ const OAuth2RedirectHandler = () => {
       // 1. Lưu ngay thông tin phiên đăng nhập vào LocalStorage & Context
       persistUserSession(userObj, token, refreshToken);
 
-      // 2. Hiển thị thông báo thành công và chuyển hướng về trang chủ
+      // 2. Hiển thị thông báo thành công và chuyển hướng theo vai trò
       Swal.fire({
         icon: "success",
         title: `Đăng nhập ${providerLabel} thành công!`,
@@ -55,7 +55,11 @@ const OAuth2RedirectHandler = () => {
         timer: 1500,
         showConfirmButton: false,
       }).then(() => {
-        window.location.replace("/");
+        if (role === "ADMIN") {
+          window.location.replace("/admin");
+        } else {
+          window.location.replace("/");
+        }
       });
     } else {
       navigate("/dang-nhap", { replace: true });
