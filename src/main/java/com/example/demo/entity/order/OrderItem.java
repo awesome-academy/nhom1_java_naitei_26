@@ -52,6 +52,16 @@ public class OrderItem {
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
 
-    @Column(name = "subtotal", nullable = false, precision = 12, scale = 2)
+    @Column(name = "subtotal", insertable = false, updatable = false)
     private BigDecimal subtotal;
+
+    public BigDecimal getSubtotal() {
+        if (subtotal != null) {
+            return subtotal;
+        }
+        if (unitPrice != null && quantity != null) {
+            return unitPrice.multiply(BigDecimal.valueOf(quantity));
+        }
+        return BigDecimal.ZERO;
+    }
 }

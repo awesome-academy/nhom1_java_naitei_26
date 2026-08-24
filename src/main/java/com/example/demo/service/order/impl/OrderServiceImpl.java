@@ -2,6 +2,7 @@ package com.example.demo.service.order.impl;
 
 import com.example.demo.dto.request.order.CreateOrderRequest;
 import com.example.demo.dto.request.order.OrderItemRequest;
+import com.example.demo.dto.request.order.SelectedCartItemRequest;
 import com.example.demo.dto.response.order.OrderItemResponse;
 import com.example.demo.dto.response.order.OrderResponse;
 import com.example.demo.entity.auth.User;
@@ -10,8 +11,10 @@ import com.example.demo.entity.order.CustomerOrder;
 import com.example.demo.entity.order.OrderItem;
 import com.example.demo.entity.product.Product;
 import com.example.demo.enums.order.OrderStatus;
+import com.example.demo.enums.product.ProductStatus;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.auth.UserRepository;
+import com.example.demo.repository.cart.CartItemRepository;
 import com.example.demo.repository.order.CustomerOrderRepository;
 import com.example.demo.repository.product.ProductRepository;
 import com.example.demo.service.cart.CartService;
@@ -22,7 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
     private final CustomerOrderRepository orderRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final CartItemRepository cartItemRepository;
     private final CartService cartService;
 
     @Override
@@ -51,26 +57,84 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         if (request.getItems() != null && !request.getItems().isEmpty()) {
-            // Tạo đơn hàng từ danh sách sản phẩm chỉ định trong request
+            // Trường hợp 1: Tạo đơn hàng từ danh sách sản phẩm đặt trực tiếp
             for (OrderItemRequest itemReq : request.getItems()) {
                 Product product = productRepository.findById(itemReq.getProductId())
                         .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.getProductId()));
 
+                validateProductAvailability(product, itemReq.getQuantity());
+
                 BigDecimal unitPrice = product.getPrice();
                 BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
-                OrderItem orderItem = new OrderItem();
-                orderItem.setProduct(product);
-                orderItem.setProductName(product.getName());
-                orderItem.setQuantity(itemReq.getQuantity());
-                orderItem.setUnitPrice(unitPrice);
-                orderItem.setSubtotal(subtotal);
-
+                OrderItem orderItem = createOrderItem(product, itemReq.getQuantity(), unitPrice, subtotal);
                 order.addItem(orderItem);
                 totalAmount = totalAmount.add(subtotal);
+
+                deductProductStock(product, itemReq.getQuantity());
             }
+        } else if (request.getCartItems() != null && !request.getCartItems().isEmpty()) {
+            // Trường hợp 2: Tích chọn sản phẩm trong giỏ VÀ cập nhật số lượng khi checkout
+            Map<Long, Integer> quantityMap = new HashMap<>();
+            List<Long> cartItemIds = new ArrayList<>();
+
+            for (SelectedCartItemRequest item : request.getCartItems()) {
+                cartItemIds.add(item.getCartItemId());
+                if (item.getQuantity() != null && item.getQuantity() > 0) {
+                    quantityMap.put(item.getCartItemId(), item.getQuantity());
+                }
+            }
+
+            List<CartItem> selectedItems = cartItemRepository.findByIdInAndCartUserId(cartItemIds, userId);
+            if (selectedItems.isEmpty()) {
+                throw new IllegalArgumentException("Không tìm thấy các sản phẩm đã chọn trong giỏ hàng");
+            }
+
+            for (CartItem cartItem : selectedItems) {
+                int quantity = quantityMap.getOrDefault(cartItem.getId(), cartItem.getQuantity());
+                Product product = cartItem.getProduct();
+
+                validateProductAvailability(product, quantity);
+
+                BigDecimal unitPrice = product.getPrice();
+                BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
+
+                OrderItem orderItem = createOrderItem(product, quantity, unitPrice, subtotal);
+                order.addItem(orderItem);
+                totalAmount = totalAmount.add(subtotal);
+
+                deductProductStock(product, quantity);
+            }
+
+            // Xóa duy nhất các sản phẩm đã tích chọn khỏi giỏ hàng
+            cartItemRepository.deleteAll(selectedItems);
+        } else if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
+            // Trường hợp 3: Tích chọn danh sách món trong giỏ hàng (giữ số lượng giỏ hàng hiện tại)
+            List<CartItem> selectedItems = cartItemRepository.findByIdInAndCartUserId(request.getCartItemIds(), userId);
+            if (selectedItems.isEmpty()) {
+                throw new IllegalArgumentException("Không tìm thấy các sản phẩm đã chọn trong giỏ hàng");
+            }
+
+            for (CartItem cartItem : selectedItems) {
+                Product product = cartItem.getProduct();
+                int quantity = cartItem.getQuantity();
+
+                validateProductAvailability(product, quantity);
+
+                BigDecimal unitPrice = product.getPrice();
+                BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
+
+                OrderItem orderItem = createOrderItem(product, quantity, unitPrice, subtotal);
+                order.addItem(orderItem);
+                totalAmount = totalAmount.add(subtotal);
+
+                deductProductStock(product, quantity);
+            }
+
+            // Xóa duy nhất các sản phẩm đã tích chọn khỏi giỏ hàng
+            cartItemRepository.deleteAll(selectedItems);
         } else {
-            // Tạo đơn hàng từ giỏ hàng hiện tại của người dùng
+            // Trường hợp 4: Mặc định checkout toàn bộ giỏ hàng
             cartService.validateCart(userId);
             List<CartItem> cartItems = cartService.getCartItemsByUserId(userId);
 
@@ -80,21 +144,21 @@ public class OrderServiceImpl implements OrderService {
 
             for (CartItem cartItem : cartItems) {
                 Product product = cartItem.getProduct();
+                int quantity = cartItem.getQuantity();
+
+                validateProductAvailability(product, quantity);
+
                 BigDecimal unitPrice = product.getPrice();
-                BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(cartItem.getQuantity()));
+                BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
 
-                OrderItem orderItem = new OrderItem();
-                orderItem.setProduct(product);
-                orderItem.setProductName(product.getName());
-                orderItem.setQuantity(cartItem.getQuantity());
-                orderItem.setUnitPrice(unitPrice);
-                orderItem.setSubtotal(subtotal);
-
+                OrderItem orderItem = createOrderItem(product, quantity, unitPrice, subtotal);
                 order.addItem(orderItem);
                 totalAmount = totalAmount.add(subtotal);
+
+                deductProductStock(product, quantity);
             }
 
-            // Xóa sạch giỏ hàng sau khi đặt hàng thành công từ giỏ
+            // Xóa sạch giỏ hàng
             cartService.clearCart(userId);
         }
 
@@ -102,6 +166,35 @@ public class OrderServiceImpl implements OrderService {
         CustomerOrder savedOrder = orderRepository.save(order);
 
         return mapToOrderResponse(savedOrder);
+    }
+
+    private void validateProductAvailability(Product product, int quantity) {
+        if (product == null) {
+            throw new ResourceNotFoundException("Sản phẩm không tồn tại");
+        }
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new IllegalArgumentException("Sản phẩm '" + product.getName() + "' hiện ngưng hoạt động");
+        }
+        int currentStock = product.getStockQuantity() == null ? 0 : product.getStockQuantity();
+        if (quantity > currentStock) {
+            throw new IllegalArgumentException("Sản phẩm '" + product.getName() + "' vượt quá số lượng tồn kho (tồn: " + currentStock + ", yêu cầu: " + quantity + ")");
+        }
+    }
+
+    private OrderItem createOrderItem(Product product, int quantity, BigDecimal unitPrice, BigDecimal subtotal) {
+        OrderItem orderItem = new OrderItem();
+        orderItem.setProduct(product);
+        orderItem.setProductName(product.getName());
+        orderItem.setQuantity(quantity);
+        orderItem.setUnitPrice(unitPrice);
+        orderItem.setSubtotal(subtotal);
+        return orderItem;
+    }
+
+    private void deductProductStock(Product product, int quantity) {
+        int currentStock = product.getStockQuantity() == null ? 0 : product.getStockQuantity();
+        product.setStockQuantity(currentStock - quantity);
+        productRepository.save(product);
     }
 
     @Override
