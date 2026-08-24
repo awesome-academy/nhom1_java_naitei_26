@@ -1,6 +1,7 @@
 package com.example.demo.service.user.impl;
 
 import com.example.demo.dto.request.user.UpdateUserProfileRequest;
+import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.dto.response.user.UserProfileResponse;
 import com.example.demo.entity.auth.User;
 import com.example.demo.enums.auth.UserRole;
@@ -14,14 +15,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -128,5 +135,44 @@ class UserServiceImplTest {
         assertThrows(ResourceNotFoundException.class, () -> userService.updateUserProfile(99L, request));
         verify(userRepository).findById(99L);
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Admin lấy danh sách users có phân trang thành công")
+    void getAllUsers_Success() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<User> page = new PageImpl<>(Collections.singletonList(mockUser));
+        when(userRepository.findUsersWithFilters(eq("hung"), eq(UserRole.USER), eq(UserStatus.ACTIVE), eq(pageable)))
+                .thenReturn(page);
+
+        Page<UserAdminResponse> result = userService.getAllUsers("hung", UserRole.USER, UserStatus.ACTIVE, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals("hung@example.com", result.getContent().get(0).getEmail());
+        verify(userRepository).findUsersWithFilters(eq("hung"), eq(UserRole.USER), eq(UserStatus.ACTIVE), eq(pageable));
+    }
+
+    @Test
+    @DisplayName("Admin lấy chi tiết user theo ID thành công")
+    void getUserById_Success() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+
+        UserAdminResponse response = userService.getUserById(1L);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getId());
+        assertEquals("hung@example.com", response.getEmail());
+        assertEquals("Nguyen Duy Hung", response.getFullName());
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("Admin lấy chi tiết user ném lỗi khi không tìm thấy ID")
+    void getUserById_NotFound() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.getUserById(99L));
+        verify(userRepository).findById(99L);
     }
 }
