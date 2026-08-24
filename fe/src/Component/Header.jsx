@@ -210,14 +210,26 @@ const Header = () => {
             <ul className="navbar-nav">
               <li className="nav-item dropdown">
                 <Link
-                  className="nav-link dropdown-toggle"
+                  className="nav-link dropdown-toggle d-flex align-items-center gap-1"
                   to="#"
                   id="navAccount"
                   role="button"
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  <i className="fas fa-user-circle me-1" />
+                  {isAuthenticated && user?.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt="Avatar"
+                      className="rounded-circle object-fit-cover shadow-sm me-1"
+                      style={{ width: 24, height: 24 }}
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <i className="fas fa-user-circle me-1" />
+                  )}
                   {isAuthenticated ? user.fullName || user.email : "Tài khoản"}
                 </Link>
 
