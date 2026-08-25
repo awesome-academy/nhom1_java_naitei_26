@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import "./App.css";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { initializeProducts } from "./data/products";
 
 // Context
 import { AuthProvider } from "./context/AuthContext";
@@ -43,6 +44,24 @@ import AdminOrderList from "./pages/Admin/Orders/OrderList";
 import AdminOrderDetail from "./pages/Admin/Orders/OrderDetail";
 
 const App = () => {
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    initializeProducts()
+      .catch(err => console.error("Dynamic product loading failed", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Đang tải dữ liệu sản phẩm...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AuthProvider>
       <CartProvider>

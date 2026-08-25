@@ -18,6 +18,10 @@ public class CategoryRequest {
     @Size(max = 100, message = "Tên danh mục không được vượt quá 100 ký tự")
     private String name;
 
+    @NotBlank(message = "Slug danh mục không được để trống")
+    @Size(max = 100, message = "Slug danh mục không được vượt quá 100 ký tự")
+    private String slug;
+
     private String description;
 
     @NotNull(message = "Trạng thái danh mục không được để trống")

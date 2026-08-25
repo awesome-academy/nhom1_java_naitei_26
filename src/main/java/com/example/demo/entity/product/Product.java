@@ -40,8 +40,53 @@ public class Product {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "slug", nullable = false, length = 255)
+    private String slug;
+
+    @Column(name = "brand", length = 100)
+    private String brand;
+
+    @Column(name = "old_price", precision = 12, scale = 2)
+    private BigDecimal oldPrice;
+
+    @Column(name = "unit", length = 50)
+    private String unit;
+
+    @Column(name = "rating", precision = 3, scale = 2)
+    private BigDecimal rating;
+
+    @Column(name = "review_count")
+    private Integer reviewCount = 0;
+
+    @Column(name = "badge", length = 50)
+    private String badge;
+
+    @Column(name = "short_description", columnDefinition = "TEXT")
+    private String shortDescription;
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "nutrition_energy", length = 50)
+    private String nutritionEnergy;
+
+    @Column(name = "nutrition_protein", length = 50)
+    private String nutritionProtein;
+
+    @Column(name = "nutrition_fat", length = 50)
+    private String nutritionFat;
+
+    @Column(name = "nutrition_carb", length = 50)
+    private String nutritionCarb;
+
+    @Column(name = "origin", length = 100)
+    private String origin;
+
+    @Column(name = "expiry", length = 255)
+    private String expiry;
+
+    @Column(name = "storage", length = 255)
+    private String storage;
 
     @Column(name = "price", nullable = false, precision = 12, scale = 2)
     private BigDecimal price;

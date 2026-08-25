@@ -31,6 +31,7 @@ public class CategoryServiceImpl implements CategoryService {
         OffsetDateTime now = OffsetDateTime.now();
         Category category = new Category();
         category.setName(request.getName().trim());
+        category.setSlug(request.getSlug().trim());
         category.setDescription(request.getDescription());
         category.setStatus(request.getStatus());
         category.setLabel(request.getLabel());
@@ -51,6 +52,7 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         category.setName(request.getName().trim());
+        category.setSlug(request.getSlug().trim());
         category.setDescription(request.getDescription());
         category.setStatus(request.getStatus());
         category.setLabel(request.getLabel());
@@ -87,6 +89,7 @@ public class CategoryServiceImpl implements CategoryService {
         return CategoryResponse.builder()
                 .id(category.getId())
                 .name(category.getName())
+                .slug(category.getSlug())
                 .description(category.getDescription())
                 .status(category.getStatus())
                 .label(category.getLabel())
