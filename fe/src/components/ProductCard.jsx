@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import StarRating from "./StarRating";
+import QuickBuyModal from "./QuickBuyModal";
 import { formatPrice, calcDiscountPercent } from "../utils/format";
 import { getCategoryName } from "../data/products";
 import { useCart } from "../context/CartContext";
@@ -9,6 +10,7 @@ import { useCart } from "../context/CartContext";
 // Thẻ sản phẩm dùng lại ở trang danh sách, trang chủ và khối "sản phẩm liên quan".
 const ProductCard = ({ product, layout = "grid" }) => {
   const { addItem } = useCart();
+  const [showQuickBuy, setShowQuickBuy] = useState(false);
   const discount = calcDiscountPercent(product.price, product.oldPrice);
   const detailUrl = `/san-pham/${product.id}`;
 
@@ -69,44 +71,63 @@ const ProductCard = ({ product, layout = "grid" }) => {
             </span>
           )}
         </div>
-        <div>
+        <div className="d-flex gap-1">
           <button
             type="button"
-            className="btn btn-primary btn-sm"
+            className="btn btn-outline-primary btn-sm"
             onClick={handleAddToCart}
             disabled={product.stock === 0}
+            title="Thêm vào giỏ hàng"
           >
             <i className="fas fa-plus me-1" />
             Thêm
+          </button>
+          <button
+            type="button"
+            className="btn btn-warning btn-sm text-dark fw-semibold"
+            onClick={() => setShowQuickBuy(true)}
+            disabled={product.stock === 0}
+            title="Mua ngay trực tiếp"
+          >
+            <i className="fas fa-bolt me-1" />
+            Mua ngay
           </button>
         </div>
       </div>
     </>
   );
 
-  if (layout === "list") {
-    return (
-      <div className="card card-product mb-4">
-        <div className="card-body">
-          <div className="row align-items-center">
-            <div className="col-md-4 col-12">{media}</div>
-            <div className="col-md-8 col-12">
-              {info}
-              <p className="text-muted small mt-2 mb-0">{product.shortDescription}</p>
+  return (
+    <>
+      {layout === "list" ? (
+        <div className="card card-product mb-4">
+          <div className="card-body">
+            <div className="row align-items-center">
+              <div className="col-md-4 col-12">{media}</div>
+              <div className="col-md-8 col-12">
+                {info}
+                <p className="text-muted small mt-2 mb-0">{product.shortDescription}</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      ) : (
+        <div className="card card-product h-100">
+          <div className="card-body d-flex flex-column">
+            {media}
+            {info}
+          </div>
+        </div>
+      )}
 
-  return (
-    <div className="card card-product h-100">
-      <div className="card-body d-flex flex-column">
-        {media}
-        {info}
-      </div>
-    </div>
+      {/* Modal Đặt mua ngay trực tiếp */}
+      <QuickBuyModal
+        product={product}
+        isOpen={showQuickBuy}
+        onClose={() => setShowQuickBuy(false)}
+        initialQuantity={1}
+      />
+    </>
   );
 };
 

@@ -110,33 +110,33 @@ const ProductList = () => {
       const kw = removeDiacritics(keyword.trim().toLowerCase());
       result = result.filter(
         (p) =>
-          removeDiacritics(p.name.toLowerCase()).includes(kw) ||
-          removeDiacritics(p.brand.toLowerCase()).includes(kw)
+          removeDiacritics((p.name || "").toLowerCase()).includes(kw) ||
+          removeDiacritics((p.brand || "").toLowerCase()).includes(kw)
       );
     }
     if (type) result = result.filter((p) => p.type === type);
     if (categories.length) result = result.filter((p) => categories.includes(p.category));
-    if (letter) result = result.filter((p) => getInitialLetter(p.name) === letter);
-    result = result.filter((p) => p.price <= maxPrice);
-    if (minRating) result = result.filter((p) => p.rating >= minRating);
+    if (letter) result = result.filter((p) => getInitialLetter(p.name || "") === letter);
+    result = result.filter((p) => (p.price || 0) <= maxPrice);
+    if (minRating) result = result.filter((p) => (p.rating || 0) >= minRating);
     if (brands.length) result = result.filter((p) => brands.includes(p.brand));
 
     const sorted = [...result];
     switch (sort) {
       case "name-asc":
-        sorted.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+        sorted.sort((a, b) => (a.name || "").localeCompare(b.name || "", "vi"));
         break;
       case "name-desc":
-        sorted.sort((a, b) => b.name.localeCompare(a.name, "vi"));
+        sorted.sort((a, b) => (b.name || "").localeCompare(a.name || "", "vi"));
         break;
       case "price-asc":
-        sorted.sort((a, b) => a.price - b.price);
+        sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
         break;
       case "price-desc":
-        sorted.sort((a, b) => b.price - a.price);
+        sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
         break;
       case "rating-desc":
-        sorted.sort((a, b) => b.rating - a.rating);
+        sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
       default:
         break;
@@ -149,7 +149,7 @@ const ProductList = () => {
 
   // Các chữ cái thực sự có sản phẩm, để vô hiệu hoá những chữ còn lại.
   const availableLetters = useMemo(
-    () => new Set(allProducts.map((p) => getInitialLetter(p.name))),
+    () => new Set(allProducts.map((p) => getInitialLetter(p.name || ""))),
     [allProducts]
   );
 

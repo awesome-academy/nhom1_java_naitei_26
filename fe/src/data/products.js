@@ -649,31 +649,31 @@ export function mapApiProductToFrontend(p) {
   if (!p) return null;
   return {
     id: p.id,
-    name: p.name,
-    slug: p.slug,
+    name: p.name || "",
+    slug: p.slug || "",
     type: p.type ? p.type.toLowerCase() : "food",
-    category: p.categorySlug,
-    categoryName: p.categoryName,
-    brand: p.brand,
-    price: p.price,
+    category: p.categorySlug || "",
+    categoryName: p.categoryName || "",
+    brand: p.brand || "",
+    price: p.price || 0,
     oldPrice: p.oldPrice,
-    unit: p.unit,
-    stock: p.stockQuantity,
+    unit: p.unit || "",
+    stock: p.stockQuantity || 0,
     rating: p.rating || 0.0,
     reviewCount: p.reviewCount || 0,
     badge: p.badge,
     images: p.images && p.images.length > 0 ? p.images : ["/images/default.jpg"],
-    shortDescription: p.shortDescription,
-    description: p.description,
+    shortDescription: p.shortDescription || "",
+    description: p.description || "",
     nutrition: {
-      energy: p.nutritionEnergy,
-      protein: p.nutritionProtein,
-      fat: p.nutritionFat,
-      carb: p.nutritionCarb
+      energy: p.nutritionEnergy || "",
+      protein: p.nutritionProtein || "",
+      fat: p.nutritionFat || "",
+      carb: p.nutritionCarb || ""
     },
-    origin: p.origin,
-    expiry: p.expiry,
-    storage: p.storage
+    origin: p.origin || "",
+    expiry: p.expiry || "",
+    storage: p.storage || ""
   };
 }
 
@@ -702,15 +702,17 @@ export async function initializeProducts() {
     const prodRes = await fetch(`${API_BASE_URL}/api/products?size=1000`);
     if (prodRes.ok) {
       const prodData = await prodRes.json();
-      if (prodData.data && prodData.data.content) {
+      const content = prodData.data?.content || (Array.isArray(prodData.data) ? prodData.data : null);
+      if (content) {
         PRODUCTS.length = 0;
-        prodData.data.content.forEach(p => {
-          PRODUCTS.push(mapApiProductToFrontend(p));
+        content.forEach(p => {
+          const mapped = mapApiProductToFrontend(p);
+          if (mapped) PRODUCTS.push(mapped);
         });
         
         // Recalculate PRICE_MAX
         if (PRODUCTS.length > 0) {
-          PRICE_MAX = Math.max(...PRODUCTS.map((p) => p.price));
+          PRICE_MAX = Math.max(...PRODUCTS.map((p) => p.price || 0));
         }
       }
     }
@@ -749,7 +751,7 @@ export function getCategoryName(slug) {
 }
 
 export function getBrands() {
-  return [...new Set(PRODUCTS.map((p) => p.brand))].sort((a, b) =>
+  return [...new Set(PRODUCTS.map((p) => p.brand).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "vi")
   );
 }
