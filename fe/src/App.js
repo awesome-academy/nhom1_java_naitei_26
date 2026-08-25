@@ -34,6 +34,9 @@ import Checkout from "./pages/Cart/Checkout";
 import OrderHistory from "./pages/Account/OrderHistory";
 import Profile from "./pages/Account/Profile";
 
+// ---- Đề xuất sản phẩm ----
+import SuggestionForm from "./pages/Suggestions/SuggestionForm";
+
 // ---- Quản trị (admin site) ----
 import Dashboard from "./pages/Admin/Dashboard";
 import AdminUserList from "./pages/Admin/Users/UserList";
@@ -42,6 +45,7 @@ import AdminProductList from "./pages/Admin/Products/ProductList";
 import AdminProductForm from "./pages/Admin/Products/ProductForm";
 import AdminOrderList from "./pages/Admin/Orders/OrderList";
 import AdminOrderDetail from "./pages/Admin/Orders/OrderDetail";
+import AdminSuggestionList from "./pages/Admin/Suggestions/SuggestionList";
 
 const App = () => {
   const [loading, setLoading] = useState(true);
@@ -117,6 +121,16 @@ const App = () => {
                 }
               />
 
+              {/* ---- Đề xuất sản phẩm (yêu cầu đăng nhập) ---- */}
+              <Route
+                path="/de-xuat-san-pham"
+                element={
+                  <ProtectedRoute>
+                    <SuggestionForm />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* ---- 404 ---- */}
               <Route path="*" element={<NotFound />} />
             </Route>
@@ -138,6 +152,7 @@ const App = () => {
               <Route path="san-pham/:id/chinh-sua" element={<AdminProductForm />} />
               <Route path="don-hang" element={<AdminOrderList />} />
               <Route path="don-hang/:id" element={<AdminOrderDetail />} />
+              <Route path="de-xuat" element={<AdminSuggestionList />} />
             </Route>
           </Routes>
         </Router>

@@ -260,6 +260,12 @@ const Header = () => {
                         </Link>
                       </li>
                       <li>
+                        <Link className="dropdown-item" to="/de-xuat-san-pham">
+                          <i className="fas fa-lightbulb me-2 text-muted" />
+                          Đề xuất sản phẩm
+                        </Link>
+                      </li>
+                      <li>
                         <hr className="dropdown-divider" />
                       </li>
                       <li>

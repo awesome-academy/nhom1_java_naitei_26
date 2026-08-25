@@ -14,6 +14,12 @@ const NAV_SECTIONS = [
       { to: "/admin/don-hang", label: "Đơn hàng", icon: "fa-receipt", badgeKey: "pendingOrders" },
       { to: "/admin/san-pham", label: "Sản phẩm", icon: "fa-box-open" },
       { to: "/admin/danh-muc", label: "Danh mục", icon: "fa-tags" },
+      {
+        to: "/admin/de-xuat",
+        label: "Đề xuất",
+        icon: "fa-lightbulb",
+        badgeKey: "pendingSuggestions",
+      },
     ],
   },
   {

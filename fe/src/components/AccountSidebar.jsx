@@ -14,6 +14,7 @@ const AccountSidebar = () => {
     { to: "/ho-so", label: "Hồ sơ cá nhân", icon: "fas fa-id-card" },
     { to: "/don-hang", label: "Đơn hàng của tôi", icon: "fas fa-box" },
     { to: "/gio-hang", label: "Giỏ hàng", icon: "fas fa-shopping-basket" },
+    { to: "/de-xuat-san-pham", label: "Đề xuất sản phẩm", icon: "fas fa-lightbulb" },
   ];
 
   const handleLogout = async () => {
