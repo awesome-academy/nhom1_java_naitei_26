@@ -1,19 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
 import PageHeader from "../../../components/admin/PageHeader";
 import Pagination from "../../../components/admin/Pagination";
 import AdminModal from "../../../components/admin/AdminModal";
 import EmptyState from "../../../components/admin/EmptyState";
 import { useAuth } from "../../../context/AuthContext";
-import { formatPrice } from "../../../utils/format";
 import {
-  filterUsers,
-  createUser,
-  updateUser,
-  deleteUser,
-  toggleUserStatus,
-  isEmailTaken,
-  getUserStats,
+  fetchAdminUsersApi,
+  updateUserStatusApi,
+  updateUserRoleApi,
   getRoleLabel,
   getRoleBadge,
   getStatusLabel,
@@ -22,173 +17,151 @@ import {
   USER_STATUSES,
 } from "../../../data/adminUsers";
 
-const PAGE_SIZE = 8;
-
-const EMPTY_FORM = {
-  fullName: "",
-  email: "",
-  phone: "",
-  address: "",
-  role: "USER",
-  status: "active",
-};
-
-function validate(form, editingId) {
-  const errors = {};
-
-  if (!form.fullName.trim()) {
-    errors.fullName = "Vui lòng nhập họ tên.";
-  } else if (form.fullName.trim().length < 2) {
-    errors.fullName = "Họ tên phải có ít nhất 2 ký tự.";
-  }
-
-  if (!form.email.trim()) {
-    errors.email = "Vui lòng nhập email.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-    errors.email = "Email không đúng định dạng.";
-  } else if (isEmailTaken(form.email, editingId)) {
-    errors.email = "Email này đã được sử dụng.";
-  }
-
-  if (form.phone.trim() && !/^0\d{9}$/.test(form.phone.trim())) {
-    errors.phone = "Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0.";
-  }
-
-  return errors;
-}
+const PAGE_SIZE = 10;
 
 const UserList = () => {
   const { user: currentUser } = useAuth();
 
   const [filters, setFilters] = useState({ keyword: "", role: "", status: "" });
   const [page, setPage] = useState(1);
-  // Tăng lên sau mỗi lần thêm/sửa/xoá để tính lại danh sách từ localStorage.
-  const [version, setVersion] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
+  const [usersPage, setUsersPage] = useState({
+    content: [],
+    totalElements: 0,
+    totalPages: 1,
+  });
 
-  const users = useMemo(
-    () => filterUsers(filters),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filters, version]
-  );
-  const stats = useMemo(
-    () => getUserStats(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version]
-  );
+  // Modal Chi tiết & Quản lý vai trò
+  const [detailUser, setDetailUser] = useState(null);
+  const [selectedRole, setSelectedRole] = useState("USER");
+  const [savingRole, setSavingRole] = useState(false);
 
-  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
-  const pageItems = users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  // Đổi bộ lọc thì quay về trang đầu; xoá hết bản ghi trang cuối thì lùi lại.
-  useEffect(() => setPage(1), [filters]);
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-
-  const setFilter = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
-  const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
-
-  const openCreate = () => {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setErrors({});
-    setShowModal(true);
-  };
-
-  const openEdit = (user) => {
-    setEditingId(user.id);
-    setForm({
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone || "",
-      address: user.address || "",
-      role: user.role,
-      status: user.status,
-    });
-    setErrors({});
-    setShowModal(true);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const nextErrors = validate(form, editingId);
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
-
-    if (editingId) {
-      updateUser(editingId, form);
-    } else {
-      createUser(form);
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchAdminUsersApi({
+        keyword: filters.keyword,
+        role: filters.role || null,
+        status: filters.status || null,
+        page: page - 1, // Spring backend 0-indexed
+        size: PAGE_SIZE,
+      });
+      setUsersPage(data || { content: [], totalElements: 0, totalPages: 1 });
+    } catch (err) {
+      console.error("Lỗi tải danh sách người dùng:", err);
+      setError(err.message || "Không thể tải danh sách người dùng");
+    } finally {
+      setLoading(false);
     }
+  }, [filters, page]);
 
-    setShowModal(false);
-    setVersion((v) => v + 1);
-    Swal.fire({
-      icon: "success",
-      title: editingId ? "Đã cập nhật người dùng" : "Đã thêm người dùng",
-      timer: 1600,
-      showConfirmButton: false,
-    });
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
   };
 
   const handleToggleStatus = async (user) => {
-    const locking = user.status === "active";
+    const isSelf = String(user.id) === String(currentUser?.id);
+    if (isSelf) {
+      Swal.fire({
+        icon: "warning",
+        title: "Không thể thao tác",
+        text: "Bạn không thể tự khóa tài khoản của chính mình!",
+      });
+      return;
+    }
+
+    const locking = user.status === "ACTIVE";
+    const nextStatus = locking ? "BLOCKED" : "ACTIVE";
+
     const result = await Swal.fire({
       icon: "question",
       title: locking ? "Khoá tài khoản?" : "Mở khoá tài khoản?",
       text: locking
-        ? `${user.fullName} sẽ không thể đăng nhập cho tới khi được mở khoá.`
-        : `${user.fullName} sẽ đăng nhập lại được bình thường.`,
+        ? `${user.fullName || user.email} sẽ không thể đăng nhập cho tới khi được mở khoá.`
+        : `${user.fullName || user.email} sẽ đăng nhập lại được bình thường.`,
       showCancelButton: true,
-      confirmButtonText: locking ? "Khoá" : "Mở khoá",
+      confirmButtonText: locking ? "Khoá tài khoản" : "Mở khoá",
       cancelButtonText: "Huỷ",
       confirmButtonColor: locking ? "#dc3545" : "#0aad0a",
     });
     if (!result.isConfirmed) return;
 
-    toggleUserStatus(user.id);
-    setVersion((v) => v + 1);
+    try {
+      await updateUserStatusApi(user.id, nextStatus);
+      Swal.fire({
+        icon: "success",
+        title: locking ? "Đã khoá tài khoản" : "Đã mở khoá tài khoản",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      loadUsers();
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Thao tác thất bại",
+        text: err.message,
+      });
+    }
   };
 
-  const handleDelete = async (user) => {
-    const result = await Swal.fire({
-      icon: "warning",
-      title: "Xoá người dùng?",
-      html: `Tài khoản <b>${user.email}</b> sẽ bị xoá vĩnh viễn.`,
-      showCancelButton: true,
-      confirmButtonText: "Xoá",
-      cancelButtonText: "Huỷ",
-      confirmButtonColor: "#dc3545",
-    });
-    if (!result.isConfirmed) return;
-
-    deleteUser(user.id);
-    setVersion((v) => v + 1);
-    Swal.fire({
-      icon: "success",
-      title: "Đã xoá người dùng",
-      timer: 1600,
-      showConfirmButton: false,
-    });
+  const openDetailModal = (user) => {
+    setDetailUser(user);
+    setSelectedRole(user.role);
   };
+
+  const handleSaveRole = async () => {
+    if (!detailUser) return;
+    const isSelf = String(detailUser.id) === String(currentUser?.id);
+    if (isSelf && selectedRole !== "ADMIN") {
+      Swal.fire({
+        icon: "warning",
+        title: "Không thể thay đổi",
+        text: "Bạn không thể tự giáng cấp vai trò của chính mình!",
+      });
+      return;
+    }
+
+    setSavingRole(true);
+    try {
+      await updateUserRoleApi(detailUser.id, selectedRole);
+      setDetailUser(null);
+      Swal.fire({
+        icon: "success",
+        title: "Cập nhật vai trò thành công",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+      loadUsers();
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Cập nhật thất bại",
+        text: err.message,
+      });
+    } finally {
+      setSavingRole(false);
+    }
+  };
+
+  const users = usersPage.content || [];
+  const totalElements = usersPage.totalElements || 0;
+  const totalPages = Math.max(1, usersPage.totalPages || 1);
 
   return (
     <div>
       <PageHeader
         title="Quản lý người dùng"
-        subtitle={`${stats.total} tài khoản · ${stats.admins} quản trị viên · ${stats.locked} đang bị khoá`}
+        subtitle={`Tổng cộng ${totalElements} tài khoản trong hệ thống`}
         breadcrumb={[{ label: "Người dùng" }]}
-      >
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
-          <i className="fas fa-plus me-2" />
-          Thêm người dùng
-        </button>
-      </PageHeader>
+      />
 
       {/* ---- Bộ lọc ---- */}
       <div className="admin-card p-3 mb-3">
@@ -203,7 +176,7 @@ const UserList = () => {
                 className="form-control"
                 placeholder="Tìm theo tên, email hoặc số điện thoại..."
                 value={filters.keyword}
-                onChange={(e) => setFilter("keyword", e.target.value)}
+                onChange={(e) => handleFilterChange("keyword", e.target.value)}
               />
             </div>
           </div>
@@ -211,7 +184,7 @@ const UserList = () => {
             <select
               className="form-select"
               value={filters.role}
-              onChange={(e) => setFilter("role", e.target.value)}
+              onChange={(e) => handleFilterChange("role", e.target.value)}
               aria-label="Lọc theo vai trò"
             >
               <option value="">Tất cả vai trò</option>
@@ -226,7 +199,7 @@ const UserList = () => {
             <select
               className="form-select"
               value={filters.status}
-              onChange={(e) => setFilter("status", e.target.value)}
+              onChange={(e) => handleFilterChange("status", e.target.value)}
               aria-label="Lọc theo trạng thái"
             >
               <option value="">Tất cả trạng thái</option>
@@ -240,102 +213,133 @@ const UserList = () => {
         </div>
       </div>
 
-      {/* ---- Bảng ---- */}
-      <div className="admin-card">
-        {pageItems.length === 0 ? (
+      {/* ---- Bảng dữ liệu ---- */}
+      <div className="admin-card position-relative">
+        {loading && (
+          <div
+            className="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-white bg-opacity-75"
+            style={{ zIndex: 10, minHeight: 200 }}
+          >
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Đang tải dữ liệu...</span>
+            </div>
+          </div>
+        )}
+
+        {error ? (
+          <div className="p-4 text-center text-danger">
+            <i className="fas fa-triangle-exclamation fs-3 mb-2" />
+            <div className="fw-semibold">{error}</div>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-primary mt-2"
+              onClick={loadUsers}
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : users.length === 0 && !loading ? (
           <EmptyState
             icon="fa-user-slash"
             title="Không tìm thấy người dùng nào"
-            description="Thử đổi từ khoá hoặc bỏ bớt bộ lọc."
+            description="Thử đổi từ khoá hoặc chọn bộ lọc khác."
           />
         ) : (
           <div className="table-responsive">
-            <table className="table admin-table align-middle">
+            <table className="table admin-table align-middle mb-0">
               <thead>
                 <tr>
                   <th>Người dùng</th>
                   <th>Liên hệ</th>
+                  <th>Địa chỉ</th>
                   <th>Vai trò</th>
                   <th>Trạng thái</th>
-                  <th className="text-end">Đơn / Chi tiêu</th>
                   <th>Ngày tạo</th>
                   <th className="text-end">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map((user) => {
-                  const isSelf = String(user.id) === String(currentUser?.id);
+                {users.map((item) => {
+                  const isSelf = String(item.id) === String(currentUser?.id);
                   return (
-                    <tr key={user.id}>
+                    <tr key={item.id}>
                       <td>
                         <div className="d-flex align-items-center gap-2">
-                          <span
-                            className="rounded-circle bg-primary-subtle text-primary d-grid fw-semibold flex-shrink-0"
-                            style={{ width: 38, height: 38, placeItems: "center" }}
-                          >
-                            {user.fullName.charAt(0).toUpperCase()}
-                          </span>
+                          {item.avatarUrl ? (
+                            <img
+                              src={item.avatarUrl}
+                              alt="Avatar"
+                              className="rounded-circle object-fit-cover flex-shrink-0"
+                              style={{ width: 38, height: 38 }}
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <span
+                              className="rounded-circle bg-primary-subtle text-primary d-grid fw-semibold flex-shrink-0"
+                              style={{ width: 38, height: 38, placeItems: "center" }}
+                            >
+                              {(item.fullName || item.email || "U").charAt(0).toUpperCase()}
+                            </span>
+                          )}
                           <div className="min-w-0">
-                            <div className="fw-semibold">{user.fullName}</div>
-                            <div className="small text-muted">#{user.id}</div>
+                            <div className="fw-semibold text-truncate">
+                              {item.fullName || item.email}
+                              {isSelf && (
+                                <span className="badge bg-primary ms-1" style={{ fontSize: "0.7rem" }}>
+                                  Bạn
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="small">
-                        <div>{user.email}</div>
-                        <div className="text-muted">{user.phone || "—"}</div>
+                        <div>{item.email}</div>
+                        <div className="text-muted">{item.phone || "Chưa cập nhật"}</div>
+                      </td>
+                      <td className="small text-truncate" style={{ maxWidth: 200 }}>
+                        {item.address || "Chưa cập nhật"}
                       </td>
                       <td>
-                        <span className={`badge ${getRoleBadge(user.role)}`}>
-                          {getRoleLabel(user.role)}
+                        <span className={`badge ${getRoleBadge(item.role)}`}>
+                          {getRoleLabel(item.role)}
                         </span>
                       </td>
                       <td>
-                        <span className={`badge ${getStatusBadge(user.status)}`}>
-                          {getStatusLabel(user.status)}
+                        <span className={`badge ${getStatusBadge(item.status)}`}>
+                          {getStatusLabel(item.status)}
                         </span>
-                      </td>
-                      <td className="text-end small">
-                        <div className="fw-semibold">{user.orderCount} đơn</div>
-                        <div className="text-muted">{formatPrice(user.totalSpent)}</div>
                       </td>
                       <td className="small text-muted">
-                        {new Date(user.createdAt).toLocaleDateString("vi-VN")}
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString("vi-VN") : "—"}
                       </td>
                       <td className="text-end text-nowrap">
                         <button
                           type="button"
                           className="btn btn-sm btn-light me-1"
-                          onClick={() => openEdit(user)}
-                          title="Sửa"
+                          onClick={() => openDetailModal(item)}
+                          title="Xem chi tiết & Quản lý vai trò"
                         >
-                          <i className="fas fa-pen" />
+                          <i className="fas fa-eye text-primary" />
                         </button>
                         <button
                           type="button"
-                          className="btn btn-sm btn-light me-1"
-                          onClick={() => handleToggleStatus(user)}
+                          className={`btn btn-sm ${
+                            item.status === "ACTIVE" ? "btn-light text-danger" : "btn-light text-success"
+                          }`}
+                          onClick={() => handleToggleStatus(item)}
                           disabled={isSelf}
                           title={
                             isSelf
                               ? "Không thể khoá chính tài khoản đang đăng nhập"
-                              : user.status === "active"
+                              : item.status === "ACTIVE"
                               ? "Khoá tài khoản"
                               : "Mở khoá tài khoản"
                           }
                         >
-                          <i
-                            className={`fas ${user.status === "active" ? "fa-lock" : "fa-lock-open"}`}
-                          />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-light text-danger"
-                          onClick={() => handleDelete(user)}
-                          disabled={isSelf}
-                          title={isSelf ? "Không thể xoá chính mình" : "Xoá"}
-                        >
-                          <i className="fas fa-trash" />
+                          <i className={`fas ${item.status === "ACTIVE" ? "fa-lock" : "fa-lock-open"}`} />
                         </button>
                       </td>
                     </tr>
@@ -346,12 +350,12 @@ const UserList = () => {
           </div>
         )}
 
-        {users.length > 0 && (
+        {totalElements > 0 && (
           <div className="p-3 border-top">
             <Pagination
               page={page}
               totalPages={totalPages}
-              totalItems={users.length}
+              totalItems={totalElements}
               pageSize={PAGE_SIZE}
               onChange={setPage}
             />
@@ -359,124 +363,119 @@ const UserList = () => {
         )}
       </div>
 
-      {/* ---- Form thêm / sửa ---- */}
+      {/* ---- Modal Chi tiết người dùng & Phân quyền ---- */}
       <AdminModal
-        show={showModal}
-        title={editingId ? "Cập nhật người dùng" : "Thêm người dùng"}
-        onClose={() => setShowModal(false)}
+        show={!!detailUser}
+        title="Chi tiết & Phân quyền người dùng"
+        onClose={() => setDetailUser(null)}
         footer={
           <>
             <button
               type="button"
               className="btn btn-light"
-              onClick={() => setShowModal(false)}
+              onClick={() => setDetailUser(null)}
             >
-              Huỷ
+              Đóng
             </button>
-            <button type="submit" form="user-form" className="btn btn-primary">
-              {editingId ? "Lưu thay đổi" : "Thêm người dùng"}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSaveRole}
+              disabled={savingRole}
+            >
+              {savingRole ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                  Đang lưu...
+                </>
+              ) : (
+                "Lưu thay đổi vai trò"
+              )}
             </button>
           </>
         }
       >
-        <form id="user-form" onSubmit={handleSubmit} noValidate>
-          <div className="mb-3">
-            <label className="form-label" htmlFor="user-fullname">
-              Họ và tên <span className="text-danger">*</span>
-            </label>
-            <input
-              id="user-fullname"
-              type="text"
-              className={`form-control ${errors.fullName ? "is-invalid" : ""}`}
-              value={form.fullName}
-              onChange={(e) => setField("fullName", e.target.value)}
-              placeholder="Nguyễn Văn A"
-            />
-            {errors.fullName && <div className="invalid-feedback">{errors.fullName}</div>}
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label" htmlFor="user-email">
-              Email <span className="text-danger">*</span>
-            </label>
-            <input
-              id="user-email"
-              type="email"
-              className={`form-control ${errors.email ? "is-invalid" : ""}`}
-              value={form.email}
-              onChange={(e) => setField("email", e.target.value)}
-              placeholder="email@example.com"
-            />
-            {errors.email && <div className="invalid-feedback">{errors.email}</div>}
-          </div>
-
-          <div className="row">
-            <div className="col-md-6 mb-3">
-              <label className="form-label" htmlFor="user-phone">
-                Số điện thoại
-              </label>
-              <input
-                id="user-phone"
-                type="tel"
-                className={`form-control ${errors.phone ? "is-invalid" : ""}`}
-                value={form.phone}
-                onChange={(e) => setField("phone", e.target.value)}
-                placeholder="0901234567"
-              />
-              {errors.phone && <div className="invalid-feedback">{errors.phone}</div>}
+        {detailUser && (
+          <div>
+            <div className="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
+              {detailUser.avatarUrl ? (
+                <img
+                  src={detailUser.avatarUrl}
+                  alt="Avatar"
+                  className="rounded-circle object-fit-cover shadow-sm flex-shrink-0"
+                  style={{ width: 64, height: 64 }}
+                />
+              ) : (
+                <div
+                  className="rounded-circle bg-primary-subtle text-primary d-grid fw-bold fs-4 flex-shrink-0"
+                  style={{ width: 64, height: 64, placeItems: "center" }}
+                >
+                  {(detailUser.fullName || detailUser.email || "U").charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h5 className="mb-0 fw-bold text-dark">{detailUser.fullName || detailUser.email}</h5>
+                <div className="small text-muted">{detailUser.email}</div>
+                <div className="mt-1 d-flex gap-2">
+                  <span className={`badge ${getRoleBadge(detailUser.role)}`}>
+                    {getRoleLabel(detailUser.role)}
+                  </span>
+                  <span className={`badge ${getStatusBadge(detailUser.status)}`}>
+                    {getStatusLabel(detailUser.status)}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="col-md-6 mb-3">
-              <label className="form-label" htmlFor="user-role">
-                Vai trò
+            <div className="row g-3">
+              <div className="col-md-6">
+                <label className="form-label text-muted small mb-1">Mã người dùng (ID)</label>
+                <div className="fw-semibold text-dark">#{detailUser.id}</div>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label text-muted small mb-1">Số điện thoại</label>
+                <div className="fw-semibold text-dark">{detailUser.phone || "Chưa cập nhật"}</div>
+              </div>
+              <div className="col-12">
+                <label className="form-label text-muted small mb-1">Địa chỉ</label>
+                <div className="fw-semibold text-dark">{detailUser.address || "Chưa cập nhật"}</div>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label text-muted small mb-1">Ngày tạo tài khoản</label>
+                <div className="text-dark small">
+                  {detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleString("vi-VN") : "—"}
+                </div>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label text-muted small mb-1">Cập nhật lần cuối</label>
+                <div className="text-dark small">
+                  {detailUser.updatedAt ? new Date(detailUser.updatedAt).toLocaleString("vi-VN") : "—"}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-top">
+              <label className="form-label fw-bold text-dark" htmlFor="select-user-role">
+                Thay đổi vai trò (Role Management)
               </label>
               <select
-                id="user-role"
+                id="select-user-role"
                 className="form-select"
-                value={form.role}
-                onChange={(e) => setField("role", e.target.value)}
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
               >
-                {USER_ROLES.map((role) => (
-                  <option value={role.value} key={role.value}>
-                    {role.label}
+                {USER_ROLES.map((r) => (
+                  <option value={r.value} key={r.value}>
+                    {r.label} ({r.value})
                   </option>
                 ))}
               </select>
+              <div className="form-text small text-muted">
+                Lưu ý: Quản trị viên (ADMIN) có toàn quyền truy cập các trang quản trị hệ thống.
+              </div>
             </div>
           </div>
-
-          <div className="mb-3">
-            <label className="form-label" htmlFor="user-address">
-              Địa chỉ
-            </label>
-            <textarea
-              id="user-address"
-              className="form-control"
-              rows="2"
-              value={form.address}
-              onChange={(e) => setField("address", e.target.value)}
-              placeholder="Số nhà, đường, quận/huyện, tỉnh/thành phố"
-            />
-          </div>
-
-          <div className="mb-1">
-            <label className="form-label" htmlFor="user-status">
-              Trạng thái
-            </label>
-            <select
-              id="user-status"
-              className="form-select"
-              value={form.status}
-              onChange={(e) => setField("status", e.target.value)}
-            >
-              {USER_STATUSES.map((status) => (
-                <option value={status.value} key={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </form>
+        )}
       </AdminModal>
     </div>
   );
