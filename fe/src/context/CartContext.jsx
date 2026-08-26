@@ -180,10 +180,12 @@ export function CartProvider({ children }) {
         price: item.price,
         quantity: item.quantity,
         subtotal: item.subtotal,
+        stockQuantity: item.stockQuantity,
         product: {
           id: item.productId,
           name: item.productName,
           price: item.price,
+          stock: item.stockQuantity,
           images: [item.productImageUrl],
         },
       }));

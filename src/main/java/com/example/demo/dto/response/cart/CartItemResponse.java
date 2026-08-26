@@ -22,4 +22,5 @@ public class CartItemResponse {
     private BigDecimal price;     // Đơn giá hiện tại
     private Integer quantity;     // Số lượng đặt mua
     private BigDecimal subtotal;  // Thành tiền = price * quantity
+    private Integer stockQuantity;// Số lượng tồn kho hiện tại
 }
