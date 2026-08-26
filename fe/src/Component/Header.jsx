@@ -34,8 +34,8 @@ const Header = () => {
     }
   };
 
-  const foodCategories = CATEGORIES.filter((c) => c.type === "food");
-  const drinkCategories = CATEGORIES.filter((c) => c.type === "drink");
+  const foodCategories = CATEGORIES.filter((c) => c.type === "food" && c.active !== false);
+  const drinkCategories = CATEGORIES.filter((c) => c.type === "drink" && c.active !== false);
 
   return (
     <div>

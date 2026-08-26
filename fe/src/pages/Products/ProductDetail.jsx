@@ -193,13 +193,13 @@ const ProductDetail = () => {
                 <div className="d-flex align-items-center flex-wrap gap-3 mb-3">
                   <StarRating value={displayRating} showValue count={displayCount} />
                   <span className="text-muted small">Thương hiệu: {product.brand}</span>
-                  {product.stock > 0 ? (
-                    <span className="badge bg-success-subtle text-success">
-                      Còn {product.stock} {product.unit.split(" ")[0].toLowerCase()}
-                    </span>
-                  ) : (
-                    <span className="badge bg-danger-subtle text-danger">Hết hàng</span>
-                  )}
+{product.stock != null && product.stock > 0 ? (
+    <span className="badge bg-success-subtle text-success">
+      Còn {String(product.stock).split(" ")[0].toLowerCase()}
+    </span>
+  ) : (
+    <span className="badge bg-danger-subtle text-danger">Hết hàng</span>
+  )}
                 </div>
 
                 <div className="d-flex align-items-baseline gap-3 mb-3">

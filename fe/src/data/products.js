@@ -673,8 +673,15 @@ export function mapApiProductToFrontend(p) {
     },
     origin: p.origin,
     expiry: p.expiry,
-    storage: p.storage
+    storage: p.storage,
+    categoryActive: cActive(p.categorySlug),
+    active: p.status === "ACTIVE"
   };
+}
+
+export function cActive(slug) {
+  const found = CATEGORIES.find((c) => c.slug === slug);
+  return found ? found.active : true; // default to active if not found
 }
 
 export async function initializeProducts() {
@@ -692,7 +699,8 @@ export async function initializeProducts() {
             id: c.id,
             slug: c.slug,
             name: c.name,
-            type: c.label ? c.label.toLowerCase() : "food"
+            type: c.label ? c.label.toLowerCase() : "food",
+            active: c.status === "ACTIVE"
           });
         });
       }
@@ -718,6 +726,9 @@ export async function initializeProducts() {
     console.error("Failed to initialize products from API, falling back to local seed data", err);
   }
 }
+
+// Alias for re-fetching after admin CRUD operations
+export const refreshProducts = initializeProducts;
 
 export function getAllProducts() {
   return PRODUCTS;
@@ -749,7 +760,7 @@ export function getCategoryName(slug) {
 }
 
 export function getBrands() {
-  return [...new Set(PRODUCTS.map((p) => p.brand))].sort((a, b) =>
+  return [...new Set(PRODUCTS.map((p) => p.brand).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "vi")
   );
 }
