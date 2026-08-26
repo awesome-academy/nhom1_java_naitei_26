@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.entity.product.ProductImage;
 import com.example.demo.repository.product.ProductImageRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,6 +36,9 @@ public class ProductServiceImpl implements ProductService {
     private final CartItemRepository cartItemRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductImageRepository productImageRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
     public ProductResponse createProduct(ProductRequest request) {
@@ -115,6 +120,7 @@ public class ProductServiceImpl implements ProductService {
             if (existing != null) {
                 existing.clear();
             }
+            entityManager.flush();
             addProductImages(saved, request.getImages(), OffsetDateTime.now());
         }
 
