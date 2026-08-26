@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.entity.product.ProductImage;
+import com.example.demo.repository.product.ProductImageRepository;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +33,7 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final CartItemRepository cartItemRepository;
     private final OrderItemRepository orderItemRepository;
+    private final ProductImageRepository productImageRepository;
 
     @Override
     public ProductResponse createProduct(ProductRequest request) {
@@ -65,6 +68,10 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdatedAt(now);
 
         Product saved = productRepository.save(product);
+
+        // Save images
+        saveProductImages(saved, request.getImages(), now);
+
         return mapToResponse(saved);
     }
 
@@ -101,6 +108,16 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdatedAt(OffsetDateTime.now());
 
         Product saved = productRepository.save(product);
+
+        // Replace images: clear old ones and add new ones to the SAME collection
+        if (request.getImages() != null) {
+            List<ProductImage> existing = saved.getImages();
+            if (existing != null) {
+                existing.clear();
+            }
+            addProductImages(saved, request.getImages(), OffsetDateTime.now());
+        }
+
         return mapToResponse(saved);
     }
 
@@ -131,6 +148,32 @@ public class ProductServiceImpl implements ProductService {
         cartItemRepository.deleteByProductId(id);
         orderItemRepository.deleteByProductId(id);
         productRepository.delete(product);
+    }
+
+    private void saveProductImages(Product product, List<String> imageUrls, OffsetDateTime now) {
+        addProductImages(product, imageUrls, now);
+    }
+
+    private void addProductImages(Product product, List<String> imageUrls, OffsetDateTime now) {
+        if (imageUrls == null || imageUrls.isEmpty()) return;
+        List<ProductImage> collection = product.getImages();
+        if (collection == null) {
+            collection = new ArrayList<>();
+            product.setImages(collection);
+        }
+        int startOrder = collection.size();
+        for (int i = 0; i < imageUrls.size(); i++) {
+            String imageUrl = imageUrls.get(i);
+            if (imageUrl == null || imageUrl.isBlank()) continue;
+            ProductImage img = new ProductImage();
+            img.setProduct(product);
+            img.setImageUrl(imageUrl.trim());
+            img.setIsPrimary(collection.isEmpty() && i == 0);
+            img.setDisplayOrder(startOrder + i);
+            img.setCreatedAt(now);
+            img.setUpdatedAt(now);
+            collection.add(img);
+        }
     }
 
     private ProductResponse mapToResponse(Product product) {

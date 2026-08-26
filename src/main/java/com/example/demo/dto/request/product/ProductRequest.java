@@ -12,11 +12,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Getter
 @Setter
 @NoArgsConstructor
 public class ProductRequest {
+
+    private List<String> images;
 
     @NotNull(message = "Mã danh mục không được để trống")
     private Long categoryId;
