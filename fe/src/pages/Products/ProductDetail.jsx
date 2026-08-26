@@ -277,6 +277,7 @@ const ProductDetail = () => {
 
                   <button
                     className="btn btn-primary flex-grow-1"
+                    style={{ flex: 1 }}
                     onClick={handleAddToCart}
                     disabled={product.stock === 0}
                   >
@@ -284,10 +285,12 @@ const ProductDetail = () => {
                     Thêm vào giỏ hàng
                   </button>
                   <button
-                    className="btn btn-dark"
+                    className="btn btn-warning text-dark fw-semibold flex-grow-1"
+                    style={{ flex: 1 }}
                     onClick={handleBuyNow}
                     disabled={product.stock === 0}
                   >
+                    <i className="fas fa-bolt me-2" />
                     Mua ngay
                   </button>
                 </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 
 const AuthContext = createContext(null);
 
@@ -32,6 +32,30 @@ export function AuthProvider({ children }) {
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // Tự động tải profile mới nhất từ Backend khi ứng dụng khởi chạy
+  useEffect(() => {
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (!token) return;
+
+    fetch(`${API_BASE_URL}/api/users/profile`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.data) {
+          setUser((prev) => {
+            const updated = { ...prev, ...data.data };
+            localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+            return updated;
+          });
+        }
+      })
+      .catch((err) => console.error("Tự động đồng bộ profile thất bại:", err));
   }, []);
 
   const persist = (nextUser, accessToken, refreshToken) => {
@@ -101,7 +125,8 @@ export function AuthProvider({ children }) {
       const userSession = {
         id: authData.id,
         email: authData.email,
-        fullName: authData.email.split("@")[0],
+        fullName: authData.fullName || authData.email.split("@")[0],
+        avatarUrl: authData.avatarUrl || null,
         role: authData.role,
         remember: !!remember,
       };
@@ -149,7 +174,7 @@ export function AuthProvider({ children }) {
     persist(null);
   };
 
-  const getProfile = async () => {
+  const getProfile = useCallback(async () => {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
     if (!token) throw new Error("Chưa đăng nhập");
 
@@ -165,8 +190,9 @@ export function AuthProvider({ children }) {
     if (!res.ok || (data.status && data.status >= 400)) {
       throw new Error(data.message || "Không thể lấy thông tin hồ sơ");
     }
+
     return data.data;
-  };
+  }, []);
 
   const updateProfileApi = async (profileData) => {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);

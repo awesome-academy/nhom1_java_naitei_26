@@ -15,12 +15,11 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class CartItemResponse {
 
-    private Long id;              // ID của CartItem
-    private Long productId;       // ID của Sản phẩm
-    private String productName;   // Tên sản phẩm
-    private String productImageUrl;// Đường dẫn hình ảnh sản phẩm (ảnh chính)
-    private BigDecimal price;     // Đơn giá hiện tại
-    private Integer quantity;     // Số lượng đặt mua
-    private BigDecimal subtotal;  // Thành tiền = price * quantity
-    private Integer stockQuantity;// Số lượng tồn kho hiện tại
+    private Long id;             
+    private Long productId;       
+    private String productName;   
+    private String productImageUrl;
+    private BigDecimal price;     
+    private Integer quantity;     
+    private BigDecimal subtotal;  
 }
