@@ -13,7 +13,8 @@ import {
   getStatusLabel,
   ORDER_STATUSES,
 } from "../../data/adminOrders";
-import { getProductStats, getLowStockProducts } from "../../data/adminProducts";
+import { getProductStats, getLowStockProducts, loadAdminProducts } from "../../data/adminProducts";
+import { loadAdminCategories } from "../../data/adminCategories";
 import { getUserStats } from "../../data/adminUsers";
 
 function formatCompact(value) {
@@ -23,27 +24,29 @@ function formatCompact(value) {
 }
 
 const Dashboard = () => {
-  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [productStats, setProductStats] = useState({ total: 0, outOfStock: 0, lowStock: 0, inventoryValue: 0 });
+  const [lowStock, setLowStock] = useState([]);
 
   useEffect(() => {
-    const loadDashboardOrders = async () => {
-      try {
-        const data = await fetchAdminOrdersApi();
-        setOrders(data);
-      } catch (err) {
-        console.warn("Lỗi nạp API Admin orders cho Dashboard, dùng fallback mock:", err);
-        setOrders(getOrders());
-      }
-    };
-    loadDashboardOrders();
+    setLoading(true);
+    Promise.all([loadAdminCategories(), loadAdminProducts()])
+      .then(() => {
+        // After data is loaded, use synchronous cache functions
+        const stats = getProductStats();
+        const lowStockProducts = getLowStockProducts(5);
+        setProductStats(stats);
+        setLowStock(lowStockProducts);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  const orderStats = useMemo(() => getOrderStats(orders), [orders]);
-  const productStats = useMemo(() => getProductStats(), []);
-  const userStats = useMemo(() => getUserStats(), []);
-  const revenueByMonth = useMemo(() => getRevenueByMonth(6, orders), [orders]);
-  const topProducts = useMemo(() => getTopProducts(5, orders), [orders]);
-  const lowStock = useMemo(() => getLowStockProducts(5), []);
+  const orderStats = useMemo(() => getOrderStats(), [loading]);
+  const userStats = useMemo(() => getUserStats(), [loading]);
+  const revenueByMonth = useMemo(() => getRevenueByMonth(6), [loading]);
+  const topProducts = useMemo(() => getTopProducts(5), [loading]);
+  const orders = useMemo(() => getOrders(), [loading]);
   const recentOrders = orders.slice(0, 6);
 
   const displayStatuses = ORDER_STATUSES;
@@ -56,6 +59,16 @@ const Dashboard = () => {
       })),
     [orders, displayStatuses]
   );
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "80vh" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Đang tải dữ liệu...</span>
+        </div>
+      </div>
+    );
+  }
 
   const maxRevenue = Math.max(...revenueByMonth.map((m) => m.revenue), 1);
 

@@ -101,7 +101,7 @@ public class Product {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private ProductStatus status = ProductStatus.ACTIVE;
-    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images;
 
     @Column(name = "created_at", nullable = false)

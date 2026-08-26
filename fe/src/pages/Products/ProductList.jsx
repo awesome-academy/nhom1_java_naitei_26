@@ -12,7 +12,8 @@ import {
   getBrands,
   PRICE_MAX,
 } from "../../data/products";
-import { ALPHABET, getInitialLetter, removeDiacritics, formatPrice } from "../../utils/format";
+import { ALPHABET, getInitialLetter, formatPrice } from "../../utils/format";
+import { normalize } from "../../data/localStore";
 
 const SORT_OPTIONS = [
   { value: "featured", label: "Nổi bật" },
@@ -28,6 +29,7 @@ const PER_PAGE = 9;
 const ProductList = () => {
   const [loading, setLoading] = useState(true);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [apiCategories, setApiCategories] = useState([]);
   const allProducts = useMemo(() => getAllProducts(), []);
 
   // URL là nguồn dữ liệu duy nhất của bộ lọc.
@@ -55,7 +57,7 @@ const ProductList = () => {
     [brandParam]
   );
 
-  // Kiểu hiển thị chỉ là tuỳ chọn giao diện nên vẫn giữ ở state.
+// Kiểu hiển thị chỉ là tuỳ chọn giao diện nên vẫn giữ ở state.
   const [layout, setLayout] = useState("grid");
 
   const brandOptions = useMemo(() => getBrands(), []);
@@ -63,6 +65,33 @@ const ProductList = () => {
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 600);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch categories from API to ensure filter uses database categories
+  useEffect(() => {
+    const fetchApiCategories = async () => {
+      try {
+        const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+        const res = await fetch(`${API_BASE_URL}/api/categories`, {
+          credentials: "include"
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.data) {
+            setApiCategories(data.data.map(c => ({
+              id: c.id,
+              name: c.name,
+              slug: c.slug,
+              type: c.label ? c.label.toLowerCase() : "food",
+              active: c.status === "ACTIVE"
+            })));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch categories from API", err);
+      }
+    };
+    fetchApiCategories();
   }, []);
 
   // Ghi các thay đổi bộ lọc lên URL. Giá trị rỗng thì xoá hẳn tham số cho gọn.
@@ -99,26 +128,43 @@ const ProductList = () => {
 
   // Danh mục hiển thị phụ thuộc phân loại đang chọn.
   const visibleCategories = useMemo(
-    () => (type ? CATEGORIES.filter((c) => c.type === type) : CATEGORIES),
-    [type]
+    () => {
+      const source = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+      if (type) {
+        return source.filter((c) => (c.type === type || c.label === type) && c.active === true);
+      }
+      return source.filter((c) => c.active === true);
+    },
+    [type, apiCategories]
   );
 
   const filtered = useMemo(() => {
     let result = allProducts;
 
+    // Ẩn sản phẩm inactive (chỉ hiển thị sản phẩm active=true)
+    result = result.filter((p) => p.active === true);
+
     if (keyword.trim()) {
-      const kw = removeDiacritics(keyword.trim().toLowerCase());
+      const kw = normalize(keyword.trim().toLowerCase());
       result = result.filter(
         (p) =>
-          removeDiacritics((p.name || "").toLowerCase()).includes(kw) ||
-          removeDiacritics((p.brand || "").toLowerCase()).includes(kw)
+          normalize(p.name.toLowerCase()).includes(kw) ||
+          normalize((p.brand || "").toLowerCase()).includes(kw)
       );
     }
     if (type) result = result.filter((p) => p.type === type);
-    if (categories.length) result = result.filter((p) => categories.includes(p.category));
-    if (letter) result = result.filter((p) => getInitialLetter(p.name || "") === letter);
-    result = result.filter((p) => (p.price || 0) <= maxPrice);
-    if (minRating) result = result.filter((p) => (p.rating || 0) >= minRating);
+    if (categories.length) {
+      // Chỉ hiển thị sản phẩm thuộc danh mục đang hoạt động (active)
+      const source = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+      const activeCategories = categories.filter(c => {
+        const found = source.find(cat => cat.slug === c);
+        return found ? found.active === true : false;
+      });
+      result = result.filter((p) => activeCategories.includes(p.category));
+    }
+    if (letter) result = result.filter((p) => getInitialLetter(p.name) === letter);
+    result = result.filter((p) => p.price <= maxPrice);
+    if (minRating) result = result.filter((p) => p.rating >= minRating);
     if (brands.length) result = result.filter((p) => brands.includes(p.brand));
 
     const sorted = [...result];
@@ -142,7 +188,7 @@ const ProductList = () => {
         break;
     }
     return sorted;
-  }, [allProducts, keyword, type, categories, letter, maxPrice, minRating, brands, sort]);
+  }, [allProducts, keyword, type, categories, letter, maxPrice, minRating, brands, sort, apiCategories]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);

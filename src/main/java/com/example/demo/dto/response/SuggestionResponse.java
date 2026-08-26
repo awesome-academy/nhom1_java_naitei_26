@@ -22,5 +22,8 @@ public class SuggestionResponse {
     private ProductType type;
     private String description;
     private SuggestionStatus status;
+    // Ghi chú của admin khi duyệt/từ chối; null khi đề xuất vừa được tạo.
+    private String adminNote;
     private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }

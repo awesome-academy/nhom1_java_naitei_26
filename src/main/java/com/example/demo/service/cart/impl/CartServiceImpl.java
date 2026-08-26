@@ -65,6 +65,7 @@ public class CartServiceImpl implements CartService {
                     .price(price)
                     .quantity(quantity)
                     .subtotal(subtotal)
+                    .stockQuantity(product.getStockQuantity())
                     .build();
 
             itemResponses.add(itemResponse);

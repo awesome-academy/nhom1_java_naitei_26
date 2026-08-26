@@ -1,6 +1,8 @@
 package com.example.demo.service.user;
 
 import com.example.demo.dto.request.user.UpdateUserProfileRequest;
+import com.example.demo.dto.request.user.UpdateUserRoleRequest;
+import com.example.demo.dto.request.user.UpdateUserStatusRequest;
 import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.dto.response.user.UserProfileResponse;
 import com.example.demo.enums.auth.UserRole;
@@ -19,4 +21,8 @@ public interface UserService {
     Page<UserAdminResponse> getAllUsers(String keyword, UserRole role, UserStatus status, Pageable pageable);
 
     UserAdminResponse getUserById(Long userId);
+
+    UserAdminResponse updateUserStatus(Long userId, UpdateUserStatusRequest request, Long currentAdminId);
+
+    UserAdminResponse updateUserRole(Long userId, UpdateUserRoleRequest request, Long currentAdminId);
 }

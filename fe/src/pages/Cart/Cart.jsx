@@ -59,7 +59,7 @@ const Cart = () => {
     setInputQuantities((prev) => ({ ...prev, [itemId]: value }));
   };
 
-  const handleQuantityBlur = (item) => {
+  const handleQuantityBlur = async (item) => {
     const itemId = item.id || item.productId;
     const rawVal = inputQuantities[itemId];
     if (rawVal === undefined) return;
@@ -68,7 +68,17 @@ const Cart = () => {
     if (isNaN(newQty) || newQty < 1) {
       newQty = 1;
     }
-    updateQuantity(itemId, newQty);
+    const stock = item.stockQuantity || item.product?.stock || 999;
+    if (newQty > stock) newQty = stock;
+    try {
+      await updateQuantity(itemId, newQty);
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Lỗi cập nhật số lượng",
+        text: err.message || "Không thể cập nhật số lượng",
+      });
+    }
     setInputQuantities((prev) => {
       const next = { ...prev };
       delete next[itemId];
@@ -262,7 +272,18 @@ const Cart = () => {
                                 <button
                                   className="btn btn-outline-secondary"
                                   type="button"
-                                  onClick={() => updateQuantity(itemId, item.quantity + 1)}
+                                  onClick={async () => {
+                                    try {
+                                      await updateQuantity(itemId, item.quantity + 1);
+                                    } catch (err) {
+                                      Swal.fire({
+                                        icon: "error",
+                                        title: "Lỗi",
+                                        text: err.message || "Không thể tăng số lượng",
+                                      });
+                                    }
+                                  }}
+                                  disabled={item.quantity >= (item.stockQuantity || item.product?.stock || 999)}
                                 >
                                   <i className="fas fa-plus" />
                                 </button>

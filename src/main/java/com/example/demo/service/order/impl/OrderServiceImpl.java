@@ -18,6 +18,7 @@ import com.example.demo.repository.cart.CartItemRepository;
 import com.example.demo.repository.order.CustomerOrderRepository;
 import com.example.demo.repository.product.ProductRepository;
 import com.example.demo.service.cart.CartService;
+import com.example.demo.service.notification.EmailNotificationService;
 import com.example.demo.service.notification.SlackNotificationService;
 import com.example.demo.service.order.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class OrderServiceImpl implements OrderService {
     private final CartItemRepository cartItemRepository;
     private final CartService cartService;
     private final SlackNotificationService slackNotificationService;
+    private final EmailNotificationService emailNotificationService;
 
     @Override
     @Transactional
@@ -149,9 +151,14 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(totalAmount);
         CustomerOrder savedOrder = orderRepository.save(order);
 
-        notifyNewOrderOnSlack(savedOrder);
+        notifyNewOrder(savedOrder);
 
         return mapToOrderResponse(savedOrder);
+    }
+
+    private void notifyNewOrder(CustomerOrder order) {
+        notifyNewOrderOnSlack(order);
+        notifyNewOrderOnEmail(order);
     }
 
     private void notifyNewOrderOnSlack(CustomerOrder order) {
@@ -160,6 +167,32 @@ public class OrderServiceImpl implements OrderService {
                 "🛒 Đơn hàng mới #%d - Khách hàng: %s - Tổng tiền: %s đ",
                 order.getId(), customerName, order.getTotalAmount().toPlainString());
         slackNotificationService.sendMessage(message);
+    }
+
+    private void notifyNewOrderOnEmail(CustomerOrder order) {
+        String customerName = order.getUser() != null ? order.getUser().getFullName() : order.getRecipientName();
+        String subject = String.format("Đơn hàng mới #%d", order.getId());
+
+        StringBuilder body = new StringBuilder();
+        body.append("Có đơn hàng mới trên hệ thống.\n\n");
+        body.append("Mã đơn hàng: #").append(order.getId()).append("\n");
+        body.append("Khách hàng: ").append(customerName).append("\n");
+        body.append("Số điện thoại: ").append(order.getRecipientPhone()).append("\n");
+        body.append("Địa chỉ giao hàng: ").append(order.getDeliveryAddress()).append("\n");
+        if (order.getNote() != null && !order.getNote().isBlank()) {
+            body.append("Ghi chú: ").append(order.getNote()).append("\n");
+        }
+        body.append("\nDanh sách sản phẩm:\n");
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+                body.append("- ").append(item.getProductName())
+                        .append(" x").append(item.getQuantity())
+                        .append(" = ").append(item.getSubtotal().toPlainString()).append(" đ\n");
+            }
+        }
+        body.append("\nTổng tiền: ").append(order.getTotalAmount().toPlainString()).append(" đ");
+
+        emailNotificationService.sendMessage(subject, body.toString());
     }
 
     @Override
@@ -191,8 +224,10 @@ public class OrderServiceImpl implements OrderService {
         deductProductStock(product, request.getQuantity());
 
         CustomerOrder savedOrder = orderRepository.save(order);
-        return mapToOrderResponse(savedOrder);
 
+        notifyNewOrder(savedOrder);
+
+        return mapToOrderResponse(savedOrder);
     }
 
     private void validateProductAvailability(Product product, int quantity) {
