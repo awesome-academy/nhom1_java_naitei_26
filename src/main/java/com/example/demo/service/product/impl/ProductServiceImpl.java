@@ -130,18 +130,22 @@ public class ProductServiceImpl implements ProductService {
     private ProductResponse mapToResponse(Product product) {
         List<String> imageUrls = product.getImages() != null ? product.getImages().stream()
                 .sorted((a, b) -> {
-                    if (a.getIsPrimary() && !b.getIsPrimary()) return -1;
-                    if (!a.getIsPrimary() && b.getIsPrimary()) return 1;
-                    return a.getDisplayOrder().compareTo(b.getDisplayOrder());
+                    boolean aPrimary = Boolean.TRUE.equals(a.getIsPrimary());
+                    boolean bPrimary = Boolean.TRUE.equals(b.getIsPrimary());
+                    if (aPrimary && !bPrimary) return -1;
+                    if (!aPrimary && bPrimary) return 1;
+                    int aOrder = a.getDisplayOrder() != null ? a.getDisplayOrder() : 0;
+                    int bOrder = b.getDisplayOrder() != null ? b.getDisplayOrder() : 0;
+                    return Integer.compare(aOrder, bOrder);
                 })
                 .map(ProductImage::getImageUrl)
                 .collect(Collectors.toList()) : List.of();
 
         return ProductResponse.builder()
                 .id(product.getId())
-                .categoryId(product.getCategory().getId())
-                .categoryName(product.getCategory().getName())
-                .categorySlug(product.getCategory().getSlug())
+                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
+                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
+                .categorySlug(product.getCategory() != null ? product.getCategory().getSlug() : null)
                 .name(product.getName())
                 .slug(product.getSlug())
                 .brand(product.getBrand())

@@ -8,7 +8,6 @@ import { formatPrice } from "../../utils/format";
 const Cart = () => {
   const {
     cartItems,
-    subtotal,
     updateQuantity,
     removeItem,
     clearCart,
@@ -25,7 +24,7 @@ const Cart = () => {
   const handleClearCart = async () => {
     const result = await Swal.fire({
       icon: "warning",
-      title: "Làm rỗng giỏ hàng?",
+      title: "Làm rỗng giỏ?",
       text: "Bạn có chắc chắn muốn xóa toàn bộ sản phẩm khỏi giỏ hàng?",
       showCancelButton: true,
       confirmButtonText: "Xóa tất cả",
@@ -146,20 +145,7 @@ const Cart = () => {
 
       <section className="mt-4 mb-lg-14 mb-8">
         <div className="container">
-          <div className="d-flex justify-content-between align-items-center mb-6">
-            <h1 className="h2 fw-bold mb-0">Giỏ hàng của bạn</h1>
-            {cartItems.length > 0 && (
-              <button
-                type="button"
-                className="btn btn-outline-danger btn-sm"
-                onClick={handleClearCart}
-                title="Xóa toàn bộ sản phẩm khỏi giỏ hàng"
-              >
-                <i className="fas fa-trash-alt me-1" />
-                Làm rỗng giỏ hàng
-              </button>
-            )}
-          </div>
+          <h1 className="h2 fw-bold mb-6">Giỏ hàng của bạn</h1>
 
           {cartItems.length === 0 ? (
             <div className="text-center py-10">
@@ -188,11 +174,22 @@ const Cart = () => {
                             />
                           </div>
                         </th>
-                        <th style={{ width: "40%" }}>Sản phẩm</th>
-                        <th>Đơn giá</th>
-                        <th style={{ width: 140 }}>Số lượng</th>
-                        <th>Thành tiền</th>
-                        <th />
+                        <th style={{ width: "35%" }} className="align-middle">Sản phẩm</th>
+                        <th className="text-center align-middle">Đơn giá</th>
+                        <th style={{ width: 140 }} className="text-center align-middle">Số lượng</th>
+                        <th className="text-center align-middle">Thành tiền</th>
+                        <th className="text-center align-middle">
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-sm text-nowrap"
+                            onClick={handleClearCart}
+                            title="Xóa toàn bộ sản phẩm khỏi giỏ hàng"
+                            style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+                          >
+                            <i className="fas fa-trash-alt me-1" />
+                            Làm rỗng giỏ
+                          </button>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -219,7 +216,7 @@ const Cart = () => {
                                 />
                               </div>
                             </td>
-                            <td>
+                            <td className="align-middle">
                               <div className="d-flex align-items-center gap-3">
                                 <img
                                   src={imageUrl}
@@ -240,9 +237,9 @@ const Cart = () => {
                                 </div>
                               </div>
                             </td>
-                            <td>{formatPrice(price)}</td>
-                            <td>
-                              <div className="input-group input-group-sm" style={{ width: 130 }}>
+                            <td className="text-center align-middle">{formatPrice(price)}</td>
+                            <td className="text-center align-middle">
+                              <div className="input-group input-group-sm mx-auto" style={{ width: 130 }}>
                                 <button
                                   className="btn btn-outline-secondary"
                                   type="button"
@@ -271,10 +268,10 @@ const Cart = () => {
                                 </button>
                               </div>
                             </td>
-                            <td className="fw-semibold text-primary">
+                            <td className="text-center align-middle fw-semibold text-primary">
                               {formatPrice(subtotalAmount)}
                             </td>
-                            <td>
+                            <td className="text-center align-middle">
                               <button
                                 type="button"
                                 className="btn btn-sm btn-link text-danger"

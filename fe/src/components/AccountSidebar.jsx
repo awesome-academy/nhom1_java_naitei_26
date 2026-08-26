@@ -9,6 +9,11 @@ const AccountSidebar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [avatarError, setAvatarError] = React.useState(false);
+
+  React.useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl]);
 
   const links = [
     { to: "/ho-so", label: "Hồ sơ cá nhân", icon: "fas fa-id-card" },
@@ -36,15 +41,13 @@ const AccountSidebar = () => {
     <div className="card">
       <div className="card-body">
         <div className="d-flex align-items-center gap-3 mb-3 pb-3 border-bottom">
-          {user?.avatarUrl ? (
+          {user?.avatarUrl && !avatarError ? (
             <img
               src={user.avatarUrl}
               alt="Avatar"
               className="rounded-circle object-fit-cover shadow-sm flex-shrink-0"
               style={{ width: 44, height: 44 }}
-              onError={(e) => {
-                e.target.style.display = "none";
-              }}
+              onError={() => setAvatarError(true)}
             />
           ) : (
             <i className="fas fa-user-circle fs-2 text-muted flex-shrink-0" />

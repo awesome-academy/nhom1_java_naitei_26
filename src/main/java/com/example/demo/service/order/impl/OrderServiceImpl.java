@@ -2,7 +2,6 @@ package com.example.demo.service.order.impl;
 
 import com.example.demo.dto.request.order.BuyNowRequest;
 import com.example.demo.dto.request.order.CreateOrderRequest;
-import com.example.demo.dto.request.order.OrderItemRequest;
 import com.example.demo.dto.request.order.SelectedCartItemRequest;
 import com.example.demo.dto.response.order.OrderItemResponse;
 import com.example.demo.dto.response.order.OrderResponse;
@@ -60,7 +59,6 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         if (request.getCartItems() != null && !request.getCartItems().isEmpty()) {
-            // Trường hợp 1: Tích chọn sản phẩm trong giỏ VÀ cập nhật số lượng khi checkout
             Map<Long, Integer> quantityMap = new HashMap<>();
             List<Long> cartItemIds = new ArrayList<>();
 
@@ -92,10 +90,10 @@ public class OrderServiceImpl implements OrderService {
                 deductProductStock(product, quantity);
             }
 
-            // Xóa duy nhất các sản phẩm đã tích chọn khỏi giỏ hàng
+            
             cartItemRepository.deleteAll(selectedItems);
         } else if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
-            // Trường hợp 2: Tích chọn danh sách món trong giỏ hàng (giữ số lượng giỏ hàng hiện tại)
+            
             List<CartItem> selectedItems = cartItemRepository.findByIdInAndCartUserId(request.getCartItemIds(), userId);
             if (selectedItems.isEmpty()) {
                 throw new IllegalArgumentException("Không tìm thấy các sản phẩm đã chọn trong giỏ hàng");
@@ -117,10 +115,10 @@ public class OrderServiceImpl implements OrderService {
                 deductProductStock(product, quantity);
             }
 
-            // Xóa duy nhất các sản phẩm đã tích chọn khỏi giỏ hàng
+            
             cartItemRepository.deleteAll(selectedItems);
         } else {
-            // Trường hợp 3: Mặc định checkout toàn bộ giỏ hàng
+            
             cartService.validateCart(userId);
             List<CartItem> cartItems = cartService.getCartItemsByUserId(userId);
 
@@ -144,7 +142,7 @@ public class OrderServiceImpl implements OrderService {
                 deductProductStock(product, quantity);
             }
 
-            // Xóa sạch giỏ hàng
+            
             cartService.clearCart(userId);
         }
 
@@ -292,14 +290,25 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItemResponse> itemResponses = new ArrayList<>();
         if (order.getItems() != null) {
             itemResponses = order.getItems().stream()
-                    .map(item -> OrderItemResponse.builder()
-                            .id(item.getId())
-                            .productId(item.getProduct() != null ? item.getProduct().getId() : null)
-                            .productName(item.getProductName())
-                            .quantity(item.getQuantity())
-                            .unitPrice(item.getUnitPrice())
-                            .subtotal(item.getSubtotal())
-                            .build())
+                    .map(item -> {
+                        String imageUrl = null;
+                        if (item.getProduct() != null && item.getProduct().getImages() != null && !item.getProduct().getImages().isEmpty()) {
+                            imageUrl = item.getProduct().getImages().stream()
+                                    .filter(img -> Boolean.TRUE.equals(img.getIsPrimary()))
+                                    .map(com.example.demo.entity.product.ProductImage::getImageUrl)
+                                    .findFirst()
+                                    .orElse(item.getProduct().getImages().get(0).getImageUrl());
+                        }
+                        return OrderItemResponse.builder()
+                                .id(item.getId())
+                                .productId(item.getProduct() != null ? item.getProduct().getId() : null)
+                                .productName(item.getProductName())
+                                .productImageUrl(imageUrl)
+                                .quantity(item.getQuantity())
+                                .unitPrice(item.getUnitPrice())
+                                .subtotal(item.getSubtotal())
+                                .build();
+                    })
                     .collect(Collectors.toList());
         }
 

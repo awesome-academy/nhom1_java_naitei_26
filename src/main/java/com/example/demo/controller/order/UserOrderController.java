@@ -27,13 +27,6 @@ public class UserOrderController {
 
     private final OrderService orderService;
 
-    /**
-     * API Checkout - Đặt hàng từ giỏ hàng.
-     *
-     * @param userDetails Thông tin User đang đăng nhập
-     * @param request DTO chứa thông tin nhận hàng (tên, SĐT, địa chỉ, ghi chú...)
-     * @return ApiResponse chứa OrderResponse chi tiết đơn hàng đã tạo thành công
-     */
     @PostMapping("/checkout")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<OrderResponse> checkout(
@@ -44,13 +37,6 @@ public class UserOrderController {
         return ApiResponse.created("Đặt hàng thành công", response);
     }
 
-    /**
-     * API Buy Now - Đặt mua trực tiếp một sản phẩm mà không qua giỏ hàng.
-     *
-     * @param userDetails Thông tin User đang đăng nhập
-     * @param request DTO chứa productId, quantity và thông tin giao hàng
-     * @return ApiResponse chứa OrderResponse chi tiết đơn hàng vừa đặt thành công
-     */
     @PostMapping("/buy-now")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<OrderResponse> buyNow(
@@ -61,12 +47,6 @@ public class UserOrderController {
         return ApiResponse.created("Đặt hàng mua ngay thành công", response);
     }
 
-    /**
-     * API lấy danh sách lịch sử đơn hàng của người dùng hiện tại.
-     *
-     * @param userDetails Thông tin User đang đăng nhập
-     * @return ApiResponse chứa danh sách OrderResponse
-     */
     @GetMapping
     public ApiResponse<List<OrderResponse>> getMyOrders(@AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = userDetails.getUser().getId();
@@ -74,13 +54,6 @@ public class UserOrderController {
         return ApiResponse.ok("Lấy danh sách đơn hàng thành công", response);
     }
 
-    /**
-     * API xem chi tiết một đơn hàng theo ID (đảm bảo đơn thuộc sở hữu của người dùng hiện tại).
-     *
-     * @param userDetails Thông tin User đang đăng nhập
-     * @param id ID của đơn hàng
-     * @return ApiResponse chứa thông tin đơn hàng
-     */
     @GetMapping("/{id}")
     public ApiResponse<OrderResponse> getOrderById(
             @AuthenticationPrincipal CustomUserDetails userDetails,

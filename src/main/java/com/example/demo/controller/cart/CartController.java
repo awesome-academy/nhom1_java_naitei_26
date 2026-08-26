@@ -31,13 +31,6 @@ public class CartController {
     private final CartService cartService;
     private final OrderService orderService;
 
-    /**
-     * API xem giỏ hàng của người dùng hiện tại (Authenticated User).
-     * Tự động lấy userId từ token JWT đã được xác thực trong Spring Security.
-     *
-     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
-     * @return ApiResponse bọc CartResponse (bao gồm danh sách món, đơn giá, thành tiền và tổng tiền)
-     */
     @GetMapping
     public ApiResponse<CartResponse> getMyCart(@AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = userDetails.getUser().getId();
@@ -45,13 +38,6 @@ public class CartController {
         return ApiResponse.ok("Lấy thông tin giỏ hàng thành công", response);
     }
 
-    /**
-     * API thêm sản phẩm vào giỏ hàng của người dùng hiện tại (Authenticated User).
-     *
-     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
-     * @param request DTO chứa productId và quantity
-     * @return ApiResponse chứa CartResponse đầy đủ thông tin giỏ hàng sau khi thêm/cập nhật
-     */
     @PostMapping("/items")
     public ApiResponse<CartResponse> addToCart(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -62,14 +48,6 @@ public class CartController {
         return ApiResponse.ok("Thêm sản phẩm vào giỏ hàng thành công", response);
     }
 
-    /**
-     * API cập nhật số lượng của một món hàng trong giỏ hàng của người dùng hiện tại.
-     *
-     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
-     * @param cartItemId ID của món hàng trong giỏ (CartItem)
-     * @param request DTO chứa số lượng mới (quantity)
-     * @return ApiResponse chứa CartResponse đầy đủ thông tin giỏ hàng sau khi cập nhật
-     */
     @PutMapping("/items/{cartItemId}")
     public ApiResponse<CartResponse> updateCartItemQuantity(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -81,13 +59,6 @@ public class CartController {
         return ApiResponse.ok("Cập nhật số lượng sản phẩm thành công", response);
     }
 
-    /**
-     * API xóa một sản phẩm khỏi giỏ hàng của người dùng hiện tại.
-     *
-     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
-     * @param cartItemId ID của món hàng trong giỏ (CartItem) cần xóa
-     * @return ApiResponse chứa CartResponse đầy đủ thông tin giỏ hàng sau khi xóa
-     */
     @DeleteMapping("/items/{cartItemId}")
     public ApiResponse<CartResponse> removeCartItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -98,12 +69,14 @@ public class CartController {
         return ApiResponse.ok("Xóa sản phẩm khỏi giỏ hàng thành công", response);
     }
 
-    /**
-     * API kiểm tra tính hợp lệ của giỏ hàng hiện tại trước khi tiến hành đặt hàng.
-     *
-     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
-     * @return ApiResponse thông báo giỏ hàng hợp lệ
-     */
+    @DeleteMapping
+    public ApiResponse<CartResponse> clearCart(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getUser().getId();
+        cartService.clearCart(userId);
+        CartResponse response = cartService.getCartDetailsByUserId(userId);
+        return ApiResponse.ok("Làm rỗng giỏ hàng thành công", response);
+    }
+
     @GetMapping("/validate")
     public ApiResponse<Void> validateCart(@AuthenticationPrincipal CustomUserDetails userDetails) {
         Long userId = userDetails.getUser().getId();
@@ -111,13 +84,6 @@ public class CartController {
         return ApiResponse.ok("Giỏ hàng hợp lệ để tiến hành đặt hàng", null);
     }
 
-    /**
-     * API Checkout trực tiếp từ giỏ hàng hiện tại của người dùng.
-     *
-     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
-     * @param request DTO chứa thông tin nhận hàng
-     * @return ApiResponse chứa OrderResponse đơn hàng đã đặt
-     */
     @PostMapping("/checkout")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<OrderResponse> checkoutFromCart(
