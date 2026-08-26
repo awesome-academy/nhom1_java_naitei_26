@@ -562,22 +562,26 @@ const UserList = () => {
             {/* Chi tiết liên hệ */}
             <div className="row g-3 mb-4">
               <div className="col-md-4">
-                <label className="form-label text-muted small mb-1">Mã khách hàng</label>
-                <div className="fw-semibold text-dark">#{detailUser.id}</div>
+                <label className="form-label text-muted small mb-1">
+                  <i className="fas fa-phone text-primary me-1" /> Số điện thoại
+                </label>
+                <div className="fw-semibold text-dark fs-6">{detailUser.phone || "Chưa cập nhật"}</div>
               </div>
-              <div className="col-md-4">
-                <label className="form-label text-muted small mb-1">Số điện thoại</label>
-                <div className="fw-semibold text-dark">{detailUser.phone || "Chưa cập nhật"}</div>
-              </div>
-              <div className="col-md-4">
-                <label className="form-label text-muted small mb-1">Ngày đăng ký</label>
-                <div className="text-dark small">
-                  {detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleDateString("vi-VN") : "—"}
+              <div className="col-md-5">
+                <label className="form-label text-muted small mb-1">
+                  <i className="fas fa-location-dot text-danger me-1" /> Địa chỉ mặc định
+                </label>
+                <div className="fw-semibold text-dark fs-6 text-truncate" title={detailUser.address || ""}>
+                  {detailUser.address || "Chưa cập nhật"}
                 </div>
               </div>
-              <div className="col-12">
-                <label className="form-label text-muted small mb-1">Địa chỉ mặc định</label>
-                <div className="fw-semibold text-dark">{detailUser.address || "Chưa cập nhật"}</div>
+              <div className="col-md-3">
+                <label className="form-label text-muted small mb-1">
+                  <i className="fas fa-calendar-day text-success me-1" /> Ngày đăng ký
+                </label>
+                <div className="text-dark fs-6">
+                  {detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleDateString("vi-VN") : "—"}
+                </div>
               </div>
             </div>
 
@@ -591,7 +595,7 @@ const UserList = () => {
                 <div className="col-md-4">
                   <div className="p-3 bg-light rounded-3 border">
                     <div className="text-muted small">Tổng đơn hàng</div>
-                    <div className="fs-5 fw-bold text-dark mt-1">
+                    <div className="fs-4 fw-bold text-dark mt-1">
                       {ordersLoading ? "..." : `${userOrderStats.totalOrders} đơn`}
                     </div>
                   </div>
@@ -599,7 +603,7 @@ const UserList = () => {
                 <div className="col-md-4">
                   <div className="p-3 bg-success-subtle rounded-3 border border-success-subtle">
                     <div className="text-success small fw-medium">Tổng chi tiêu</div>
-                    <div className="fs-5 fw-bold text-success mt-1">
+                    <div className="fs-4 fw-bold text-success mt-1">
                       {ordersLoading ? "..." : formatPrice(userOrderStats.totalSpent)}
                     </div>
                   </div>
@@ -607,7 +611,7 @@ const UserList = () => {
                 <div className="col-md-4">
                   <div className="p-3 bg-light rounded-3 border">
                     <div className="text-muted small">Đơn gần nhất</div>
-                    <div className="fs-6 fw-bold text-dark mt-1">
+                    <div className="fs-5 fw-bold text-dark mt-1">
                       {ordersLoading ? "..." : userOrderStats.latestDate}
                     </div>
                   </div>
@@ -623,54 +627,55 @@ const UserList = () => {
               </h6>
 
               {ordersLoading ? (
-                <div className="text-center py-4 text-muted">
-                  <div className="spinner-border spinner-border-sm text-primary me-2" role="status" />
+                <div className="text-center py-5 text-muted">
+                  <div className="spinner-border text-primary me-2" role="status" />
                   Đang tải danh sách đơn hàng...
                 </div>
               ) : userOrders.length === 0 ? (
                 <div className="p-4 text-center text-muted bg-light rounded-3 border border-dashed">
-                  <i className="fas fa-box-open fs-3 text-muted opacity-50 mb-2 d-block" />
+                  <i className="fas fa-box-open fs-2 text-muted opacity-50 mb-2 d-block" />
                   Khách hàng này chưa có đơn hàng nào trong hệ thống.
                 </div>
               ) : (
-                <div className="table-responsive border rounded-3" style={{ maxHeight: 260, overflowY: "auto" }}>
-                  <table className="table table-hover table-sm align-middle mb-0">
+                <div className="table-responsive border rounded-3" style={{ maxHeight: 340, overflowY: "auto" }}>
+                  <table className="table table-hover align-middle mb-0">
                     <thead className="table-light sticky-top">
                       <tr>
-                        <th>Mã đơn</th>
-                        <th>Ngày đặt</th>
-                        <th>Số món</th>
-                        <th>Tổng tiền</th>
-                        <th>Trạng thái</th>
-                        <th className="text-end">Chi tiết</th>
+                        <th className="py-3 px-3">Mã đơn</th>
+                        <th className="py-3">Ngày đặt</th>
+                        <th className="py-3">Số món</th>
+                        <th className="py-3">Tổng tiền</th>
+                        <th className="py-3">Trạng thái</th>
+                        <th className="py-3 text-end px-3">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
                       {userOrders.map((order) => (
                         <tr key={order.id}>
-                          <td className="fw-semibold text-primary">#{order.id}</td>
-                          <td className="small text-muted">
+                          <td className="fw-bold text-primary px-3">#{order.id}</td>
+                          <td className="text-muted">
                             {order.createdAt ? new Date(order.createdAt).toLocaleDateString("vi-VN") : "—"}
                           </td>
-                          <td className="small">
-                            {order.items ? `${order.items.length} món` : "—"}
+                          <td>
+                            <span className="badge bg-light text-dark border">
+                              {order.items ? `${order.items.length} món` : "—"}
+                            </span>
                           </td>
-                          <td className="fw-bold text-dark small">
+                          <td className="fw-bold text-dark">
                             {formatPrice(order.totalAmount)}
                           </td>
                           <td>
-                            <span className={`badge ${getOrderStatusBadge(order.status)}`} style={{ fontSize: "0.75rem" }}>
+                            <span className={`badge ${getOrderStatusBadge(order.status)}`} style={{ fontSize: "0.8rem", padding: "5px 10px" }}>
                               {getOrderStatusLabel(order.status)}
                             </span>
                           </td>
-                          <td className="text-end">
+                          <td className="text-end px-3">
                             <button
                               type="button"
-                              className="btn btn-xs btn-outline-primary py-0 px-2"
-                              style={{ fontSize: "0.75rem" }}
+                              className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-medium"
                               onClick={() => setSelectedOrder(order)}
                             >
-                              Xem
+                              <i className="fas fa-eye me-1" /> Xem
                             </button>
                           </td>
                         </tr>
