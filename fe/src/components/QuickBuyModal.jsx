@@ -6,7 +6,7 @@ import { useCart } from "../context/CartContext";
 import { formatPrice } from "../utils/format";
 
 const QuickBuyModal = ({ product, isOpen, onClose, initialQuantity = 1 }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, getProfile, updateProfileApi } = useAuth();
   const { buyNowApi } = useCart();
   const navigate = useNavigate();
 
@@ -17,6 +17,7 @@ const QuickBuyModal = ({ product, isOpen, onClose, initialQuantity = 1 }) => {
     address: "",
     note: "",
   });
+  const [saveDefaultAddress, setSaveDefaultAddress] = useState(true);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -30,8 +31,25 @@ const QuickBuyModal = ({ product, isOpen, onClose, initialQuantity = 1 }) => {
         note: "",
       });
       setErrors({});
+
+      if (isAuthenticated && getProfile) {
+        getProfile()
+          .then((profile) => {
+            if (profile) {
+              setForm((prev) => ({
+                ...prev,
+                fullName: prev.fullName || profile.fullName || "",
+                phone: prev.phone || profile.phone || "",
+                address: prev.address || profile.address || "",
+              }));
+            }
+          })
+          .catch((err) => {
+            console.warn("Không thể tải hồ sơ người dùng trong Buy Now:", err);
+          });
+      }
     }
-  }, [isOpen, initialQuantity, user]);
+  }, [isOpen, initialQuantity, user, isAuthenticated, getProfile]);
 
   if (!isOpen || !product) return null;
 
@@ -72,6 +90,19 @@ const QuickBuyModal = ({ product, isOpen, onClose, initialQuantity = 1 }) => {
 
     try {
       const order = await buyNowApi(payload);
+
+      if (saveDefaultAddress && updateProfileApi) {
+        try {
+          await updateProfileApi({
+            fullName: form.fullName.trim(),
+            phone: form.phone.trim(),
+            address: form.address.trim(),
+          });
+        } catch (profileErr) {
+          console.warn("Cập nhật địa chỉ vào profile người dùng thất bại:", profileErr);
+        }
+      }
+
       onClose();
       Swal.fire({
         icon: "success",
@@ -191,7 +222,7 @@ const QuickBuyModal = ({ product, isOpen, onClose, initialQuantity = 1 }) => {
                     className={`form-control ${errors.phone ? "is-invalid" : ""}`}
                     value={form.phone}
                     onChange={handleChange}
-                    placeholder="0901234567"
+                    placeholder="Nhập số điện thoại (10 chữ số)"
                     disabled={submitting}
                   />
                   {errors.phone && <div className="invalid-feedback">{errors.phone}</div>}
@@ -211,6 +242,19 @@ const QuickBuyModal = ({ product, isOpen, onClose, initialQuantity = 1 }) => {
                     disabled={submitting}
                   />
                   {errors.address && <div className="invalid-feedback">{errors.address}</div>}
+                  <div className="form-check mt-2">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="saveDefaultAddressQuickBuy"
+                      checked={saveDefaultAddress}
+                      onChange={(e) => setSaveDefaultAddress(e.target.checked)}
+                      disabled={submitting}
+                    />
+                    <label className="form-check-label small text-muted" htmlFor="saveDefaultAddressQuickBuy">
+                      Lưu thông tin giao hàng này làm địa chỉ mặc định cho tài khoản của tôi
+                    </label>
+                  </div>
                 </div>
 
                 <div className="col-12">
