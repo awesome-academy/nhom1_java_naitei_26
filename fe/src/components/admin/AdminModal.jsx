@@ -21,10 +21,12 @@ const AdminModal = ({ show, title, size = "", onClose, children, footer }) => {
 
   if (!show) return null;
 
+  const sizeClass = size ? (size.startsWith("modal-") ? size : `modal-${size}`) : "";
+
   return (
     <>
       <div className="modal fade show d-block" tabIndex="-1" role="dialog">
-        <div className={`modal-dialog modal-dialog-centered modal-dialog-scrollable ${size}`}>
+        <div className={`modal-dialog modal-dialog-centered modal-dialog-scrollable ${sizeClass}`}>
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title">{title}</h5>

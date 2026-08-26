@@ -1,18 +1,22 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Swal from "sweetalert2";
 import PageHeader from "../../../components/admin/PageHeader";
 import Pagination from "../../../components/admin/Pagination";
 import AdminModal from "../../../components/admin/AdminModal";
 import EmptyState from "../../../components/admin/EmptyState";
 import { useAuth } from "../../../context/AuthContext";
+import { formatPrice } from "../../../utils/format";
 import {
   fetchAdminUsersApi,
+  fetchAdminUserDetailApi,
+  fetchAdminUserOrdersApi,
   updateUserStatusApi,
-  updateUserRoleApi,
   getRoleLabel,
   getRoleBadge,
   getStatusLabel,
   getStatusBadge,
+  getOrderStatusLabel,
+  getOrderStatusBadge,
   USER_ROLES,
   USER_STATUSES,
 } from "../../../data/adminUsers";
@@ -33,10 +37,14 @@ const UserList = () => {
     totalPages: 1,
   });
 
-  // Modal Chi tiết & Quản lý vai trò
+  // Modal Chi tiết người dùng & Đơn hàng
   const [detailUser, setDetailUser] = useState(null);
-  const [selectedRole, setSelectedRole] = useState("USER");
-  const [savingRole, setSavingRole] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [userOrders, setUserOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+
+  // Popup xem nhanh chi tiết 1 đơn hàng cụ thể
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -78,6 +86,15 @@ const UserList = () => {
       return;
     }
 
+    if (user.role === "ADMIN" && user.status === "ACTIVE") {
+      Swal.fire({
+        icon: "warning",
+        title: "Không thể thao tác",
+        text: "Không thể khóa tài khoản có vai trò Quản trị viên (ADMIN)!",
+      });
+      return;
+    }
+
     const locking = user.status === "ACTIVE";
     const nextStatus = locking ? "BLOCKED" : "ACTIVE";
 
@@ -112,44 +129,51 @@ const UserList = () => {
     }
   };
 
-  const openDetailModal = (user) => {
+  const openDetailModal = async (user) => {
     setDetailUser(user);
-    setSelectedRole(user.role);
-  };
+    setDetailLoading(true);
+    setOrdersLoading(true);
+    setUserOrders([]);
 
-  const handleSaveRole = async () => {
-    if (!detailUser) return;
-    const isSelf = String(detailUser.id) === String(currentUser?.id);
-    if (isSelf && selectedRole !== "ADMIN") {
-      Swal.fire({
-        icon: "warning",
-        title: "Không thể thay đổi",
-        text: "Bạn không thể tự giáng cấp vai trò của chính mình!",
-      });
-      return;
-    }
-
-    setSavingRole(true);
     try {
-      await updateUserRoleApi(detailUser.id, selectedRole);
-      setDetailUser(null);
-      Swal.fire({
-        icon: "success",
-        title: "Cập nhật vai trò thành công",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-      loadUsers();
+      // 1. Tải chi tiết người dùng
+      const fullDetail = await fetchAdminUserDetailApi(user.id);
+      if (fullDetail) {
+        setDetailUser(fullDetail);
+      }
     } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Cập nhật thất bại",
-        text: err.message,
-      });
+      console.warn("Dùng dữ liệu danh sách do không thể tải chi tiết từ API:", err);
     } finally {
-      setSavingRole(false);
+      setDetailLoading(false);
+    }
+
+    try {
+      // 2. Tải lịch sử đơn hàng của người dùng
+      const orders = await fetchAdminUserOrdersApi(user.id);
+      setUserOrders(orders || []);
+    } catch (err) {
+      console.warn("Không thể tải lịch sử đơn hàng:", err);
+      setUserOrders([]);
+    } finally {
+      setOrdersLoading(false);
     }
   };
+
+  // Tính toán thống kê mua sắm của khách hàng
+  const userOrderStats = useMemo(() => {
+    const totalOrders = userOrders.length;
+    const completedOrders = userOrders.filter((o) => o.status !== "CANCELLED");
+    const totalSpent = completedOrders.reduce(
+      (sum, o) => sum + (Number(o.totalAmount) || 0),
+      0
+    );
+    const latestOrder = userOrders[0];
+    const latestDate = latestOrder?.createdAt
+      ? new Date(latestOrder.createdAt).toLocaleDateString("vi-VN")
+      : "Chưa có";
+
+    return { totalOrders, totalSpent, latestDate };
+  }, [userOrders]);
 
   const users = usersPage.content || [];
   const totalElements = usersPage.totalElements || 0;
@@ -261,6 +285,7 @@ const UserList = () => {
               <tbody>
                 {users.map((item) => {
                   const isSelf = String(item.id) === String(currentUser?.id);
+                  const isItemAdmin = item.role === "ADMIN";
                   return (
                     <tr key={item.id}>
                       <td>
@@ -320,7 +345,7 @@ const UserList = () => {
                           type="button"
                           className="btn btn-sm btn-light me-1"
                           onClick={() => openDetailModal(item)}
-                          title="Xem chi tiết & Quản lý vai trò"
+                          title="Xem chi tiết & Lịch sử mua hàng"
                         >
                           <i className="fas fa-eye text-primary" />
                         </button>
@@ -330,10 +355,12 @@ const UserList = () => {
                             item.status === "ACTIVE" ? "btn-light text-danger" : "btn-light text-success"
                           }`}
                           onClick={() => handleToggleStatus(item)}
-                          disabled={isSelf}
+                          disabled={isSelf || (isItemAdmin && item.status === "ACTIVE")}
                           title={
                             isSelf
                               ? "Không thể khoá chính tài khoản đang đăng nhập"
+                              : isItemAdmin && item.status === "ACTIVE"
+                              ? "Không thể khóa tài khoản Quản trị viên"
                               : item.status === "ACTIVE"
                               ? "Khoá tài khoản"
                               : "Mở khoá tài khoản"
@@ -363,52 +390,157 @@ const UserList = () => {
         )}
       </div>
 
-      {/* ---- Modal Chi tiết người dùng & Phân quyền ---- */}
+      {/* ---- Modal Chi tiết người dùng & Đơn hàng (1 Modal duy nhất) ---- */}
       <AdminModal
         show={!!detailUser}
-        title="Chi tiết & Phân quyền người dùng"
-        onClose={() => setDetailUser(null)}
+        title={
+          selectedOrder ? (
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary py-1 px-2 rounded-2 me-1"
+                onClick={() => setSelectedOrder(null)}
+                title="Quay lại thông tin khách hàng"
+              >
+                <i className="fas fa-arrow-left me-1" /> Quay lại
+              </button>
+              <span>Chi tiết đơn hàng #{selectedOrder.id}</span>
+            </div>
+          ) : (
+            "Chi tiết thông tin khách hàng"
+          )
+        }
+        size="lg"
+        onClose={() => {
+          setSelectedOrder(null);
+          setDetailUser(null);
+        }}
         footer={
-          <>
+          selectedOrder ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline-secondary me-2"
+                onClick={() => setSelectedOrder(null)}
+              >
+                <i className="fas fa-arrow-left me-1" /> Quay lại
+              </button>
+              <button
+                type="button"
+                className="btn btn-light px-4"
+                onClick={() => {
+                  setSelectedOrder(null);
+                  setDetailUser(null);
+                }}
+              >
+                Đóng
+              </button>
+            </>
+          ) : (
             <button
               type="button"
-              className="btn btn-light"
+              className="btn btn-light px-4"
               onClick={() => setDetailUser(null)}
             >
               Đóng
             </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleSaveRole}
-              disabled={savingRole}
-            >
-              {savingRole ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                  Đang lưu...
-                </>
-              ) : (
-                "Lưu thay đổi vai trò"
-              )}
-            </button>
-          </>
+          )
         }
       >
-        {detailUser && (
+        {selectedOrder ? (
+          /* View 2: Chi tiết đơn hàng */
           <div>
+            <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <div>
+                <span className="text-muted small">Thời gian đặt: </span>
+                <span className="fw-semibold text-dark small">
+                  {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString("vi-VN") : "—"}
+                </span>
+              </div>
+              <span className={`badge ${getOrderStatusBadge(selectedOrder.status)}`}>
+                {getOrderStatusLabel(selectedOrder.status)}
+              </span>
+            </div>
+
+            {/* Thông tin giao hàng */}
+            <div className="bg-light p-3 rounded-3 mb-3 border small">
+              <div className="mb-1">
+                <strong>Người nhận:</strong> {selectedOrder.recipientName || "—"} ({selectedOrder.recipientPhone || "—"})
+              </div>
+              <div className="mb-1">
+                <strong>Địa chỉ giao:</strong> {selectedOrder.deliveryAddress || "—"}
+              </div>
+              {selectedOrder.note && (
+                <div>
+                  <strong>Ghi chú:</strong> {selectedOrder.note}
+                </div>
+              )}
+            </div>
+
+            {/* Danh sách sản phẩm trong đơn */}
+            <h6 className="fw-bold text-dark mb-2 small">Sản phẩm đã đặt:</h6>
+            <div className="table-responsive border rounded-3 mb-3">
+              <table className="table table-sm align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th className="text-center">Số lượng</th>
+                    <th className="text-end">Đơn giá</th>
+                    <th className="text-end">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                    selectedOrder.items.map((item, idx) => (
+                      <tr key={idx}>
+                        <td>
+                          <div className="fw-medium text-dark">{item.productName}</div>
+                        </td>
+                        <td className="text-center">{item.quantity}</td>
+                        <td className="text-end text-muted small">{formatPrice(item.unitPrice)}</td>
+                        <td className="text-end fw-semibold text-dark">{formatPrice(item.subtotal)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="text-center text-muted py-2">
+                        Không có sản phẩm
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Tổng cộng */}
+            <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 border">
+              <span className="fw-bold text-dark">Tổng tiền thanh toán:</span>
+              <span className="fs-5 fw-bold text-danger">{formatPrice(selectedOrder.totalAmount)}</span>
+            </div>
+          </div>
+        ) : detailUser ? (
+          /* View 1: Hồ sơ khách hàng & Lịch sử mua sắm */
+          <div>
+            {detailLoading && (
+              <div className="text-muted small mb-2 fst-italic">
+                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                Đang làm mới thông tin từ máy chủ...
+              </div>
+            )}
+
+            {/* Thông tin hồ sơ */}
             <div className="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
               {detailUser.avatarUrl ? (
                 <img
                   src={detailUser.avatarUrl}
                   alt="Avatar"
                   className="rounded-circle object-fit-cover shadow-sm flex-shrink-0"
-                  style={{ width: 64, height: 64 }}
+                  style={{ width: 60, height: 60 }}
                 />
               ) : (
                 <div
                   className="rounded-circle bg-primary-subtle text-primary d-grid fw-bold fs-4 flex-shrink-0"
-                  style={{ width: 64, height: 64, placeItems: "center" }}
+                  style={{ width: 60, height: 60, placeItems: "center" }}
                 >
                   {(detailUser.fullName || detailUser.email || "U").charAt(0).toUpperCase()}
                 </div>
@@ -427,58 +559,138 @@ const UserList = () => {
               </div>
             </div>
 
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label className="form-label text-muted small mb-1">Mã người dùng (ID)</label>
-                <div className="fw-semibold text-dark">#{detailUser.id}</div>
+            {/* Chi tiết liên hệ */}
+            <div className="row g-3 mb-4">
+              <div className="col-md-4">
+                <label className="form-label text-muted small mb-1">
+                  <i className="fas fa-phone text-primary me-1" /> Số điện thoại
+                </label>
+                <div className="fw-semibold text-dark fs-6">{detailUser.phone || "Chưa cập nhật"}</div>
               </div>
-              <div className="col-md-6">
-                <label className="form-label text-muted small mb-1">Số điện thoại</label>
-                <div className="fw-semibold text-dark">{detailUser.phone || "Chưa cập nhật"}</div>
-              </div>
-              <div className="col-12">
-                <label className="form-label text-muted small mb-1">Địa chỉ</label>
-                <div className="fw-semibold text-dark">{detailUser.address || "Chưa cập nhật"}</div>
-              </div>
-              <div className="col-md-6">
-                <label className="form-label text-muted small mb-1">Ngày tạo tài khoản</label>
-                <div className="text-dark small">
-                  {detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleString("vi-VN") : "—"}
+              <div className="col-md-5">
+                <label className="form-label text-muted small mb-1">
+                  <i className="fas fa-location-dot text-danger me-1" /> Địa chỉ mặc định
+                </label>
+                <div className="fw-semibold text-dark fs-6 text-truncate" title={detailUser.address || ""}>
+                  {detailUser.address || "Chưa cập nhật"}
                 </div>
               </div>
-              <div className="col-md-6">
-                <label className="form-label text-muted small mb-1">Cập nhật lần cuối</label>
-                <div className="text-dark small">
-                  {detailUser.updatedAt ? new Date(detailUser.updatedAt).toLocaleString("vi-VN") : "—"}
+              <div className="col-md-3">
+                <label className="form-label text-muted small mb-1">
+                  <i className="fas fa-calendar-day text-success me-1" /> Ngày đăng ký
+                </label>
+                <div className="text-dark fs-6">
+                  {detailUser.createdAt ? new Date(detailUser.createdAt).toLocaleDateString("vi-VN") : "—"}
                 </div>
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-top">
-              <label className="form-label fw-bold text-dark" htmlFor="select-user-role">
-                Thay đổi vai trò (Role Management)
-              </label>
-              <select
-                id="select-user-role"
-                className="form-select"
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-              >
-                {USER_ROLES.map((r) => (
-                  <option value={r.value} key={r.value}>
-                    {r.label} ({r.value})
-                  </option>
-                ))}
-              </select>
-              <div className="form-text small text-muted">
-                Lưu ý: Quản trị viên (ADMIN) có toàn quyền truy cập các trang quản trị hệ thống.
+            {/* Thống kê mua sắm (KPI Cards) */}
+            <div className="mb-4">
+              <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                <i className="fas fa-chart-pie text-success" />
+                Thống kê mua sắm
+              </h6>
+              <div className="row g-3">
+                <div className="col-md-4">
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted small">Tổng đơn hàng</div>
+                    <div className="fs-4 fw-bold text-dark mt-1">
+                      {ordersLoading ? "..." : `${userOrderStats.totalOrders} đơn`}
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="p-3 bg-success-subtle rounded-3 border border-success-subtle">
+                    <div className="text-success small fw-medium">Tổng chi tiêu</div>
+                    <div className="fs-4 fw-bold text-success mt-1">
+                      {ordersLoading ? "..." : formatPrice(userOrderStats.totalSpent)}
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="p-3 bg-light rounded-3 border">
+                    <div className="text-muted small">Đơn gần nhất</div>
+                    <div className="fs-5 fw-bold text-dark mt-1">
+                      {ordersLoading ? "..." : userOrderStats.latestDate}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* Lịch sử đơn hàng gần đây */}
+            <div>
+              <h6 className="fw-bold text-dark mb-3 d-flex align-items-center gap-2">
+                <i className="fas fa-receipt text-primary" />
+                Lịch sử đơn hàng ({userOrders.length})
+              </h6>
+
+              {ordersLoading ? (
+                <div className="text-center py-5 text-muted">
+                  <div className="spinner-border text-primary me-2" role="status" />
+                  Đang tải danh sách đơn hàng...
+                </div>
+              ) : userOrders.length === 0 ? (
+                <div className="p-4 text-center text-muted bg-light rounded-3 border border-dashed">
+                  <i className="fas fa-box-open fs-2 text-muted opacity-50 mb-2 d-block" />
+                  Khách hàng này chưa có đơn hàng nào trong hệ thống.
+                </div>
+              ) : (
+                <div className="table-responsive border rounded-3" style={{ maxHeight: 340, overflowY: "auto" }}>
+                  <table className="table table-hover align-middle mb-0">
+                    <thead className="table-light sticky-top">
+                      <tr>
+                        <th className="py-3 px-3">Mã đơn</th>
+                        <th className="py-3">Ngày đặt</th>
+                        <th className="py-3">Số món</th>
+                        <th className="py-3">Tổng tiền</th>
+                        <th className="py-3">Trạng thái</th>
+                        <th className="py-3 text-end px-3">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userOrders.map((order) => (
+                        <tr key={order.id}>
+                          <td className="fw-bold text-primary px-3">#{order.id}</td>
+                          <td className="text-muted">
+                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString("vi-VN") : "—"}
+                          </td>
+                          <td>
+                            <span className="badge bg-light text-dark border">
+                              {order.items ? `${order.items.length} món` : "—"}
+                            </span>
+                          </td>
+                          <td className="fw-bold text-dark">
+                            {formatPrice(order.totalAmount)}
+                          </td>
+                          <td>
+                            <span className={`badge ${getOrderStatusBadge(order.status)}`} style={{ fontSize: "0.8rem", padding: "5px 10px" }}>
+                              {getOrderStatusLabel(order.status)}
+                            </span>
+                          </td>
+                          <td className="text-end px-3">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary rounded-pill px-3 fw-medium"
+                              onClick={() => setSelectedOrder(order)}
+                            >
+                              <i className="fas fa-eye me-1" /> Xem
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+        ) : null}
       </AdminModal>
     </div>
   );
 };
 
 export default UserList;
+

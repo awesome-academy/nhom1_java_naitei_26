@@ -24,29 +24,27 @@ function formatCompact(value) {
 }
 
 const Dashboard = () => {
-  const [loading, setLoading] = useState(true);
-  const [productStats, setProductStats] = useState({ total: 0, outOfStock: 0, lowStock: 0, inventoryValue: 0 });
-  const [lowStock, setLowStock] = useState([]);
+  const [orders, setOrders] = useState([]);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([loadAdminCategories(), loadAdminProducts()])
-      .then(() => {
-        // After data is loaded, use synchronous cache functions
-        const stats = getProductStats();
-        const lowStockProducts = getLowStockProducts(5);
-        setProductStats(stats);
-        setLowStock(lowStockProducts);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const loadDashboardOrders = async () => {
+      try {
+        const data = await fetchAdminOrdersApi();
+        setOrders(data);
+      } catch (err) {
+        console.warn("Lỗi nạp API Admin orders cho Dashboard, dùng fallback mock:", err);
+        setOrders(getOrders());
+      }
+    };
+    loadDashboardOrders();
   }, []);
 
-  const orderStats = useMemo(() => getOrderStats(), [loading]);
-  const userStats = useMemo(() => getUserStats(), [loading]);
-  const revenueByMonth = useMemo(() => getRevenueByMonth(6), [loading]);
-  const topProducts = useMemo(() => getTopProducts(5), [loading]);
-  const orders = useMemo(() => getOrders(), [loading]);
+  const orderStats = useMemo(() => getOrderStats(orders), [orders]);
+  const productStats = useMemo(() => getProductStats(), []);
+  const userStats = useMemo(() => getUserStats(), []);
+  const revenueByMonth = useMemo(() => getRevenueByMonth(6, orders), [orders]);
+  const topProducts = useMemo(() => getTopProducts(5, orders), [orders]);
+  const lowStock = useMemo(() => getLowStockProducts(5), []);
   const recentOrders = orders.slice(0, 6);
 
   const displayStatuses = ORDER_STATUSES;
