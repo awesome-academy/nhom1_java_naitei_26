@@ -7,6 +7,8 @@ import com.example.demo.entity.product.Product;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.product.CategoryRepository;
 import com.example.demo.repository.product.ProductRepository;
+import com.example.demo.repository.cart.CartItemRepository;
+import com.example.demo.repository.order.OrderItemRepository;
 import com.example.demo.service.product.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,6 +29,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final CartItemRepository cartItemRepository;
+    private final OrderItemRepository orderItemRepository;
 
     @Override
     public ProductResponse createProduct(ProductRequest request) {
@@ -124,6 +128,8 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "id", id));
+        cartItemRepository.deleteByProductId(id);
+        orderItemRepository.deleteByProductId(id);
         productRepository.delete(product);
     }
 

@@ -4,8 +4,10 @@ import com.example.demo.dto.request.SuggestionRequest;
 import com.example.demo.dto.request.SuggestionStatusUpdateRequest;
 import com.example.demo.dto.response.SuggestionAdminResponse;
 import com.example.demo.dto.response.SuggestionResponse;
+import com.example.demo.dto.response.SuggestionStatsResponse;
 import com.example.demo.entity.product.ProductSuggestion;
 import com.example.demo.entity.auth.User;
+import com.example.demo.enums.product.ProductType;
 import com.example.demo.enums.product.SuggestionStatus;
 import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.product.ProductSuggestionRepository;
@@ -18,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,23 +49,34 @@ public class SuggestionServiceImpl implements SuggestionService {
 
         ProductSuggestion saved = suggestionRepository.save(suggestion);
 
-        return SuggestionResponse.builder()
-                .id(saved.getId())
-                .productName(saved.getProductName())
-                .type(saved.getType())
-                .description(saved.getDescription())
-                .status(saved.getStatus())
-                .createdAt(saved.getCreatedAt())
-                .build();
+        return toResponse(saved);
     }
 
     @Override
-    public Page<SuggestionAdminResponse> getSuggestions(SuggestionStatus status, Pageable pageable) {
-        Page<ProductSuggestion> suggestions = status != null
-                ? suggestionRepository.findByStatus(status, pageable)
-                : suggestionRepository.findAll(pageable);
+    @Transactional(readOnly = true)
+    public List<SuggestionResponse> getMySuggestions(Long userId) {
+        return suggestionRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<SuggestionAdminResponse> getSuggestions(SuggestionStatus status, ProductType type, String keyword, Pageable pageable) {
+        Page<ProductSuggestion> suggestions =
+                suggestionRepository.findWithFilters(status, type, keyword, pageable);
 
         return suggestions.map(this::toAdminResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SuggestionStatsResponse getSuggestionStats() {
+        return SuggestionStatsResponse.builder()
+                .total(suggestionRepository.count())
+                .pending(suggestionRepository.countByStatus(SuggestionStatus.PENDING))
+                .approved(suggestionRepository.countByStatus(SuggestionStatus.APPROVED))
+                .rejected(suggestionRepository.countByStatus(SuggestionStatus.REJECTED))
+                .build();
     }
 
     @Override
@@ -75,6 +90,19 @@ public class SuggestionServiceImpl implements SuggestionService {
 
         ProductSuggestion saved = suggestionRepository.save(suggestion);
         return toAdminResponse(saved);
+    }
+
+    private SuggestionResponse toResponse(ProductSuggestion suggestion) {
+        return SuggestionResponse.builder()
+                .id(suggestion.getId())
+                .productName(suggestion.getProductName())
+                .type(suggestion.getType())
+                .description(suggestion.getDescription())
+                .status(suggestion.getStatus())
+                .adminNote(suggestion.getAdminNote())
+                .createdAt(suggestion.getCreatedAt())
+                .updatedAt(suggestion.getUpdatedAt())
+                .build();
     }
 
     private SuggestionAdminResponse toAdminResponse(ProductSuggestion suggestion) {

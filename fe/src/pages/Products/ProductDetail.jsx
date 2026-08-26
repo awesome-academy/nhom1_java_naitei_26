@@ -26,12 +26,9 @@ const ProductDetail = () => {
 
   const product = useMemo(() => getProductById(id), [id]);
   const related = useMemo(() => getRelatedProducts(product), [product]);
-  const baseline = useMemo(
-    () => ({ rating: product?.rating || 0, count: product?.reviewCount || 0 }),
-    [product]
-  );
-  const { reviews, addReview, averageRating, distribution, total, visibleTotal } =
-    useReviews(id, baseline);
+  const { reviews, addReview, averageRating, distribution, total } =
+    useReviews(id);
+  const visibleTotal = total;
 
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -68,15 +65,23 @@ const ProductDetail = () => {
     setQuantity((q) => Math.min(product.stock, Math.max(1, q + delta)));
   };
 
-  const handleAddToCart = () => {
-    addItem(product.id, quantity);
-    Swal.fire({
-      icon: "success",
-      title: "Đã thêm vào giỏ hàng",
-      text: `${product.name} × ${quantity}`,
-      timer: 1800,
-      showConfirmButton: false,
-    });
+  const handleAddToCart = async () => {
+    try {
+      await addItem(product.id, quantity);
+      Swal.fire({
+        icon: "success",
+        title: "Đã thêm vào giỏ hàng",
+        text: `${product.name} × ${quantity}`,
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Lỗi",
+        text: err.message || "Không thể thêm vào giỏ hàng",
+      });
+    }
   };
 
   const handleBuyNow = () => {
@@ -87,7 +92,7 @@ const ProductDetail = () => {
     setShowQuickBuy(true);
   };
 
-  const handleSubmitReview = (e) => {
+  const handleSubmitReview = async (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
       navigate("/dang-nhap", { state: { from: { pathname: `/san-pham/${product.id}` } } });
@@ -97,20 +102,22 @@ const ProductDetail = () => {
       setReviewError("Vui lòng nhập nội dung đánh giá.");
       return;
     }
-    addReview({
-      author: user.fullName || user.email,
-      rating: reviewForm.rating,
-      title: reviewForm.title.trim() || "Đánh giá sản phẩm",
-      content: reviewForm.content.trim(),
-    });
-    setReviewForm({ rating: 5, title: "", content: "" });
-    setReviewError("");
-    Swal.fire({
-      icon: "success",
-      title: "Cảm ơn bạn đã đánh giá!",
-      timer: 1600,
-      showConfirmButton: false,
-    });
+    try {
+      await addReview({
+        rating: reviewForm.rating,
+        content: reviewForm.content.trim(),
+      });
+      setReviewForm({ rating: 5, title: "", content: "" });
+      setReviewError("");
+      Swal.fire({
+        icon: "success",
+        title: "Cảm ơn bạn đã đánh giá!",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      setReviewError(err.message || "Gửi đánh giá thất bại.");
+    }
   };
 
   return (
@@ -195,13 +202,13 @@ const ProductDetail = () => {
                 <div className="d-flex align-items-center flex-wrap gap-3 mb-3">
                   <StarRating value={displayRating} showValue count={displayCount} />
                   <span className="text-muted small">Thương hiệu: {product.brand}</span>
-                  {product.stock > 0 ? (
-                    <span className="badge bg-success-subtle text-success">
-                      Còn {product.stock} {product.unit.split(" ")[0].toLowerCase()}
-                    </span>
-                  ) : (
-                    <span className="badge bg-danger-subtle text-danger">Hết hàng</span>
-                  )}
+{product.stock != null && product.stock > 0 ? (
+    <span className="badge bg-success-subtle text-success">
+      Còn {String(product.stock).split(" ")[0].toLowerCase()}
+    </span>
+  ) : (
+    <span className="badge bg-danger-subtle text-danger">Hết hàng</span>
+  )}
                 </div>
 
                 <div className="d-flex align-items-baseline gap-3 mb-3">
@@ -419,15 +426,17 @@ const ProductDetail = () => {
                           <div className="border-bottom pb-4 mb-4" key={review.id}>
                             <div className="d-flex justify-content-between align-items-start">
                               <div>
-                                <h6 className="mb-1">{review.title}</h6>
-                                <StarRating value={review.rating} />
+                                <h6 className="mb-1">{review.comment || "Đánh giá sản phẩm"}</h6>
+                                <StarRating value={review.score} />
                                 <span className="ms-2 small text-muted">
-                                  {review.author}
+                                  {review.userName}
                                 </span>
                               </div>
-                              <span className="small text-muted">{review.date}</span>
+                              <span className="small text-muted">
+                                {review.createdAt ? new Date(review.createdAt).toLocaleDateString("vi-VN") : ""}
+                              </span>
                             </div>
-                            <p className="mt-2 mb-0">{review.content}</p>
+                            <p className="mt-2 mb-0">{review.comment}</p>
                           </div>
                         ))
                       )}

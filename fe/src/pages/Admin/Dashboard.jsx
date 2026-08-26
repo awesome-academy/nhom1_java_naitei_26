@@ -13,7 +13,8 @@ import {
   getStatusLabel,
   ORDER_STATUSES,
 } from "../../data/adminOrders";
-import { getProductStats, getLowStockProducts } from "../../data/adminProducts";
+import { getProductStats, getLowStockProducts, loadAdminProducts } from "../../data/adminProducts";
+import { loadAdminCategories } from "../../data/adminCategories";
 import { getUserStats } from "../../data/adminUsers";
 
 function formatCompact(value) {
@@ -56,6 +57,16 @@ const Dashboard = () => {
       })),
     [orders, displayStatuses]
   );
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "80vh" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Đang tải dữ liệu...</span>
+        </div>
+      </div>
+    );
+  }
 
   const maxRevenue = Math.max(...revenueByMonth.map((m) => m.revenue), 1);
 

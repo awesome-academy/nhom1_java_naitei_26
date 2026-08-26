@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import Swal from "sweetalert2";
 import ScrollToTop from "../ScrollToTop";
 import AccountSidebar from "../../components/AccountSidebar";
-import { useAuth } from "../../context/AuthContext";
 import { createSuggestion, SUGGESTION_TYPES } from "../../data/suggestions";
 
 const EMPTY_FORM = {
@@ -15,8 +14,6 @@ const EMPTY_FORM = {
 const DESCRIPTION_MAX = 500;
 
 const SuggestionForm = () => {
-  const { user } = useAuth();
-
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -48,15 +45,13 @@ const SuggestionForm = () => {
     return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
     setSubmitting(true);
     try {
-      // Ticket này chỉ dựng giao diện: lưu tạm xuống localStorage.
-      // Ticket nối API sẽ thay lời gọi dưới đây bằng POST /api/suggestions.
-      createSuggestion(form, user);
+      await createSuggestion(form);
 
       setForm(EMPTY_FORM);
       setErrors({});
@@ -70,7 +65,7 @@ const SuggestionForm = () => {
       Swal.fire({
         icon: "error",
         title: "Gửi đề xuất thất bại",
-        text: "Có lỗi xảy ra, vui lòng thử lại sau.",
+        text: err.message || "Có lỗi xảy ra, vui lòng thử lại sau.",
         confirmButtonText: "Đã hiểu",
       });
     } finally {

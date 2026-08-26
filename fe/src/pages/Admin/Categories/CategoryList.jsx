@@ -13,8 +13,9 @@ import {
   slugify,
   getTypeLabel,
   PRODUCT_TYPES,
+  loadAdminCategories,
 } from "../../../data/adminCategories";
-import { countProductsByCategory } from "../../../data/adminProducts";
+import { countProductsByCategory, loadAdminProducts } from "../../../data/adminProducts";
 
 const EMPTY_FORM = {
   name: "",
@@ -28,13 +29,16 @@ const EMPTY_FORM = {
 function validate(form, editingId) {
   const errors = {};
 
-  if (!form.name.trim()) {
+  const nameVal = (form.name || "").trim();
+  const slugVal = (form.slug || "").trim();
+
+  if (!nameVal) {
     errors.name = "Vui lòng nhập tên danh mục.";
-  } else if (form.name.trim().length < 2) {
+  } else if (nameVal.length < 2) {
     errors.name = "Tên danh mục phải có ít nhất 2 ký tự.";
   }
 
-  const slug = form.slug.trim() || slugify(form.name);
+  const slug = slugVal || slugify(nameVal);
   if (!slug) {
     errors.slug = "Không tạo được đường dẫn từ tên danh mục, hãy nhập thủ công.";
   } else if (!/^[a-z0-9-]+$/.test(slug)) {
@@ -53,6 +57,7 @@ function validate(form, editingId) {
 const CategoryList = () => {
   const [filters, setFilters] = useState({ keyword: "", type: "", active: "" });
   const [version, setVersion] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -61,10 +66,17 @@ const CategoryList = () => {
   // Khi thêm mới, đường dẫn tự sinh theo tên cho tới lúc người dùng tự sửa.
   const [slugTouched, setSlugTouched] = useState(false);
 
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([loadAdminCategories(), loadAdminProducts()])
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [version]);
+
   const categories = useMemo(
-    () => filterCategories(filters),
+    () => (loading ? [] : filterCategories(filters)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filters, version]
+    [filters, version, loading]
   );
 
   // Số sản phẩm của từng danh mục, dùng để hiển thị và chặn xoá nhầm.
@@ -108,32 +120,39 @@ const CategoryList = () => {
     setShowModal(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const nextErrors = validate(form, editingId);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     const payload = { ...form, slug: form.slug.trim() || slugify(form.name) };
-    if (editingId) {
-      updateCategory(editingId, payload);
-    } else {
-      createCategory(payload);
+    try {
+      if (editingId) {
+        await updateCategory(editingId, payload);
+      } else {
+        await createCategory(payload);
+      }
+      setShowModal(false);
+      setVersion((v) => v + 1);
+      Swal.fire({
+        icon: "success",
+        title: editingId ? "Đã cập nhật danh mục" : "Đã thêm danh mục",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Không lưu được danh mục", text: err.message });
     }
-
-    setShowModal(false);
-    setVersion((v) => v + 1);
-    Swal.fire({
-      icon: "success",
-      title: editingId ? "Đã cập nhật danh mục" : "Đã thêm danh mục",
-      timer: 1600,
-      showConfirmButton: false,
-    });
   };
 
-  const handleToggleActive = (category) => {
-    updateCategory(category.id, { active: !category.active });
-    setVersion((v) => v + 1);
+  const handleToggleActive = async (category) => {
+    try {
+      await updateCategory(category.id, { active: !category.active });
+      setVersion((v) => v + 1);
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Lỗi", text: err.message });
+    }
   };
 
   const handleDelete = async (category) => {
@@ -159,16 +178,21 @@ const CategoryList = () => {
       cancelButtonText: "Huỷ",
       confirmButtonColor: "#dc3545",
     });
-    if (!result.isConfirmed) return;
 
-    deleteCategory(category.id);
-    setVersion((v) => v + 1);
-    Swal.fire({
-      icon: "success",
-      title: "Đã xoá danh mục",
-      timer: 1600,
-      showConfirmButton: false,
-    });
+    if (result.isConfirmed) {
+      try {
+        await deleteCategory(category.id);
+        setVersion((v) => v + 1);
+        Swal.fire({
+          icon: "success",
+          title: "Đã xoá danh mục",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } catch (err) {
+        Swal.fire({ icon: "error", title: "Không thể xoá danh mục", text: err.message });
+      }
+    }
   };
 
   return (
@@ -233,7 +257,13 @@ const CategoryList = () => {
 
       {/* ---- Bảng ---- */}
       <div className="admin-card">
-        {categories.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Đang tải...</span>
+            </div>
+          </div>
+        ) : categories.length === 0 ? (
           <EmptyState
             icon="fa-tags"
             title="Không có danh mục nào"

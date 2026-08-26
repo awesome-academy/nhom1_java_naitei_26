@@ -11,8 +11,8 @@ import { CATEGORIES } from "../data/products";
 
 const Footer = () => {
   const year = new Date().getFullYear();
-  const foodCategories = CATEGORIES.filter((c) => c.type === "food").slice(0, 5);
-  const drinkCategories = CATEGORIES.filter((c) => c.type === "drink");
+  const foodCategories = CATEGORIES.filter((c) => c.type === "food" && c.active !== false).slice(0, 5);
+  const drinkCategories = CATEGORIES.filter((c) => c.type === "drink" && c.active !== false);
 
   const paymentLogos = [
     { src: visa, alt: "Visa" },

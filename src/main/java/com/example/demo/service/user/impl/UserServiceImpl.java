@@ -1,12 +1,15 @@
 package com.example.demo.service.user.impl;
 
 import com.example.demo.dto.request.user.UpdateUserProfileRequest;
+import com.example.demo.dto.request.user.UpdateUserRoleRequest;
+import com.example.demo.dto.request.user.UpdateUserStatusRequest;
 import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.dto.response.user.UserProfileResponse;
 import com.example.demo.entity.auth.User;
 import com.example.demo.enums.auth.UserRole;
 import com.example.demo.enums.auth.UserStatus;
 import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.repository.auth.RefreshTokenRepository;
 import com.example.demo.repository.auth.UserRepository;
 import com.example.demo.service.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -76,5 +80,44 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + userId));
         return UserAdminResponse.fromEntity(user);
+    }
+
+    @Override
+    @Transactional
+    public UserAdminResponse updateUserStatus(Long userId, UpdateUserStatusRequest request, Long currentAdminId) {
+        log.info("Admin ID {} cập nhật trạng thái user ID {} thành {}", currentAdminId, userId, request.getStatus());
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + userId));
+
+        if (userId.equals(currentAdminId) && request.getStatus() == UserStatus.BLOCKED) {
+            throw new IllegalArgumentException("Admin không thể tự khóa tài khoản của chính mình");
+        }
+
+        user.setStatus(request.getStatus());
+        User savedUser = userRepository.save(user);
+
+        if (request.getStatus() == UserStatus.BLOCKED) {
+            refreshTokenRepository.deleteByUser(savedUser);
+            log.info("Đã thu hồi toàn bộ refreshToken của user ID {}", userId);
+        }
+
+        return UserAdminResponse.fromEntity(savedUser);
+    }
+
+    @Override
+    @Transactional
+    public UserAdminResponse updateUserRole(Long userId, UpdateUserRoleRequest request, Long currentAdminId) {
+        log.info("Admin ID {} cập nhật vai trò user ID {} thành {}", currentAdminId, userId, request.getRole());
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + userId));
+
+        if (userId.equals(currentAdminId) && request.getRole() != UserRole.ADMIN) {
+            throw new IllegalArgumentException("Admin không thể tự thay đổi vai trò của chính mình");
+        }
+
+        user.setRole(request.getRole());
+        User savedUser = userRepository.save(user);
+
+        return UserAdminResponse.fromEntity(savedUser);
     }
 }

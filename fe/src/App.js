@@ -36,6 +36,7 @@ import Profile from "./pages/Account/Profile";
 
 // ---- Đề xuất sản phẩm ----
 import SuggestionForm from "./pages/Suggestions/SuggestionForm";
+import MySuggestions from "./pages/Suggestions/MySuggestions";
 
 // ---- Quản trị (admin site) ----
 import Dashboard from "./pages/Admin/Dashboard";
@@ -127,6 +128,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <SuggestionForm />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/de-xuat-cua-toi"
+                element={
+                  <ProtectedRoute>
+                    <MySuggestions />
                   </ProtectedRoute>
                 }
               />

@@ -10,10 +10,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/suggestions")
@@ -38,5 +41,20 @@ public class SuggestionController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Gửi đề xuất sản phẩm thành công", response));
+    }
+
+    /**
+     * API xem lại các đề xuất do chính mình đã gửi kèm trạng thái duyệt và ghi chú của admin.
+     * GET /api/suggestions/my
+     *
+     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
+     * @return ApiResponse bọc danh sách đề xuất của người dùng, mới nhất lên đầu
+     */
+    @GetMapping("/my")
+    public ResponseEntity<ApiResponse<List<SuggestionResponse>>> getMySuggestions(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getUser().getId();
+        List<SuggestionResponse> response = suggestionService.getMySuggestions(userId);
+        return ResponseEntity.ok(ApiResponse.ok("Lấy danh sách đề xuất của bạn thành công", response));
     }
 }
