@@ -1,8 +1,23 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
-test('renders app header and footer without crashing', () => {
+beforeEach(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ data: { content: [] } }),
+    })
+  );
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+test('renders app header and footer without crashing', async () => {
   render(<App />);
-  const logos = screen.getAllByAltText(/Thực phẩm & Đồ uống/i);
-  expect(logos.length).toBeGreaterThan(0);
+  await waitFor(() => {
+    const logos = screen.getAllByAltText(/Thực phẩm & Đồ uống/i);
+    expect(logos.length).toBeGreaterThan(0);
+  });
 });
