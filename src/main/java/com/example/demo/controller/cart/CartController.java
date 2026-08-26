@@ -112,6 +112,20 @@ public class CartController {
     }
 
     /**
+     * API xóa tất cả sản phẩm khỏi giỏ hàng của người dùng hiện tại.
+     *
+     * @param userDetails Đối tượng chứa thông tin User đang đăng nhập
+     * @return ApiResponse chứa CartResponse rỗng sau khi xóa
+     */
+    @DeleteMapping
+    public ApiResponse<CartResponse> clearCart(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        Long userId = userDetails.getUser().getId();
+        cartService.clearCart(userId);
+        CartResponse response = cartService.getCartDetailsByUserId(userId);
+        return ApiResponse.ok("Xóa toàn bộ giỏ hàng thành công", response);
+    }
+
+    /**
      * API Checkout trực tiếp từ giỏ hàng hiện tại của người dùng.
      *
      * @param userDetails Đối tượng chứa thông tin User đang đăng nhập

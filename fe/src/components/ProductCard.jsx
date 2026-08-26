@@ -14,15 +14,23 @@ const ProductCard = ({ product, layout = "grid" }) => {
   const discount = calcDiscountPercent(product.price, product.oldPrice);
   const detailUrl = `/san-pham/${product.id}`;
 
-  const handleAddToCart = () => {
-    addItem(product.id, 1);
-    Swal.fire({
-      icon: "success",
-      title: "Đã thêm vào giỏ hàng",
-      text: product.name,
-      timer: 1600,
-      showConfirmButton: false,
-    });
+  const handleAddToCart = async () => {
+    try {
+      await addItem(product.id, 1);
+      Swal.fire({
+        icon: "success",
+        title: "Đã thêm vào giỏ hàng",
+        text: product.name,
+        timer: 1600,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Lỗi",
+        text: err.message || "Không thể thêm vào giỏ hàng",
+      });
+    }
   };
 
   const media = (

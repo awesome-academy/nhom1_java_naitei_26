@@ -133,6 +133,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Bắt lỗi NullPointerException (ví dụ: userDetails bị null do token không hợp lệ)
+     */
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<ApiResponse<Object>> handleNullPointerException(NullPointerException ex) {
+        log.error("NullPointerException: {}", ex.getMessage(), ex);
+        ApiResponse<Object> response = ApiResponse.error(
+                HttpStatus.UNAUTHORIZED.value(),
+                "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại."
+        );
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+    }
+
+    /**
      * Bắt lỗi 400 Bad Request khi tham số truyền vào không đúng logic nghiệp vụ (ví dụ: quantity <= 0)
      */
     @ExceptionHandler(IllegalArgumentException.class)
