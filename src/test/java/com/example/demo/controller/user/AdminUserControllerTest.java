@@ -2,10 +2,13 @@ package com.example.demo.controller.user;
 
 import com.example.demo.config.security.CustomUserDetails;
 import com.example.demo.dto.request.user.UpdateUserStatusRequest;
+import com.example.demo.dto.response.order.OrderResponse;
 import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.entity.auth.User;
 import com.example.demo.enums.auth.UserRole;
 import com.example.demo.enums.auth.UserStatus;
+import com.example.demo.enums.order.OrderStatus;
+import com.example.demo.service.order.OrderService;
 import com.example.demo.service.user.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +25,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 
@@ -44,6 +48,9 @@ class AdminUserControllerTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private OrderService orderService;
 
     private CustomUserDetails adminUserDetails;
     private CustomUserDetails regularUserDetails;
@@ -107,6 +114,26 @@ class AdminUserControllerTest {
                 .andExpect(jsonPath("$.status").value(200))
                 .andExpect(jsonPath("$.data.id").value(2))
                 .andExpect(jsonPath("$.data.fullName").value("Regular User"));
+    }
+
+    @Test
+    @DisplayName("GET /api/admin/users/{id}/orders - Admin lấy lịch sử đơn hàng của user thành công (200 OK)")
+    void getUserOrders_AsAdmin_Success() throws Exception {
+        OrderResponse order = OrderResponse.builder()
+                .id(100L)
+                .totalAmount(new BigDecimal("150000"))
+                .status(OrderStatus.CONFIRMED)
+                .build();
+
+        Mockito.when(orderService.getOrdersByUserId(eq(2L))).thenReturn(Collections.singletonList(order));
+
+        mockMvc.perform(get("/api/admin/users/2/orders")
+                        .with(user(adminUserDetails))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value(200))
+                .andExpect(jsonPath("$.data[0].id").value(100))
+                .andExpect(jsonPath("$.data[0].status").value("CONFIRMED"));
     }
 
     @Test

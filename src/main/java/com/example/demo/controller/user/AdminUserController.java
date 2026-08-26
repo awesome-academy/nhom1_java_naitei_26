@@ -4,9 +4,11 @@ import com.example.demo.config.security.CustomUserDetails;
 import com.example.demo.dto.request.user.UpdateUserStatusRequest;
 import com.example.demo.dto.response.common.ApiResponse;
 import com.example.demo.dto.response.common.PageResponse;
+import com.example.demo.dto.response.order.OrderResponse;
 import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.enums.auth.UserRole;
 import com.example.demo.enums.auth.UserStatus;
+import com.example.demo.service.order.OrderService;
 import com.example.demo.service.user.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/users")
@@ -35,6 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminUserController {
 
     private final UserService userService;
+    private final OrderService orderService;
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -60,6 +65,14 @@ public class AdminUserController {
         log.info("Admin truy vấn chi tiết User ID: {}", id);
         UserAdminResponse result = userService.getUserById(id);
         return ResponseEntity.ok(ApiResponse.ok("Lấy chi tiết người dùng thành công", result));
+    }
+
+    @GetMapping("/{id}/orders")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<OrderResponse>>> getUserOrders(@PathVariable Long id) {
+        log.info("Admin truy vấn lịch sử đơn hàng của User ID: {}", id);
+        List<OrderResponse> result = orderService.getOrdersByUserId(id);
+        return ResponseEntity.ok(ApiResponse.ok("Lấy lịch sử đơn hàng của người dùng thành công", result));
     }
 
     @PatchMapping("/{id}/status")
