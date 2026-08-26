@@ -1,22 +1,69 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ScrollToTop from "../ScrollToTop";
 import AccountSidebar from "../../components/AccountSidebar";
 import { useAuth } from "../../context/AuthContext";
-import { getOrdersByUser, ORDER_STATUS } from "../../data/orders";
+import { getOrdersByUser } from "../../data/orders";
 import { formatPrice } from "../../utils/format";
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
 const STATUS_BADGE = {
-  [ORDER_STATUS.PENDING]: "bg-warning-subtle text-warning",
-  [ORDER_STATUS.CONFIRMED]: "bg-info-subtle text-info",
-  [ORDER_STATUS.SHIPPING]: "bg-primary-subtle text-primary",
-  [ORDER_STATUS.COMPLETED]: "bg-success-subtle text-success",
+  PENDING: "bg-warning-subtle text-warning",
+  CONFIRMED: "bg-info-subtle text-info",
+  PROCESSING: "bg-primary-subtle text-primary",
+  SHIPPING: "bg-primary-subtle text-primary",
+  COMPLETED: "bg-success-subtle text-success",
+  CANCELLED: "bg-danger-subtle text-danger",
+};
+
+const STATUS_LABEL = {
+  PENDING: "Chờ xử lý",
+  CONFIRMED: "Đã xác nhận",
+  PROCESSING: "Đang đóng gói",
+  SHIPPING: "Đang giao hàng",
+  COMPLETED: "Hoàn thành",
+  CANCELLED: "Đã hủy",
 };
 
 const OrderHistory = () => {
   const { user } = useAuth();
-  const orders = useMemo(() => getOrdersByUser(user.id), [user.id]);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/orders`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          const data = await res.json();
+          if (res.ok && data.data) {
+            setOrders(data.data);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error("Lỗi khi tải lịch sử đơn hàng từ API:", err);
+        }
+      }
+
+      // Fallback local data nếu chưa đăng nhập hoặc API trống
+      const localOrders = getOrdersByUser(user?.id);
+      setOrders(localOrders);
+      setLoading(false);
+    };
+
+    fetchOrders();
+  }, [user?.id]);
 
   return (
     <div>
@@ -45,7 +92,12 @@ const OrderHistory = () => {
             <div className="col-lg-9">
               <h1 className="h2 fw-bold mb-6">Đơn hàng của tôi</h1>
 
-              {orders.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-10">
+                  <i className="fas fa-spinner fa-spin fa-2x text-primary mb-3" />
+                  <p className="text-muted">Đang tải danh sách đơn hàng...</p>
+                </div>
+              ) : orders.length === 0 ? (
                 <div className="text-center py-10">
                   <i className="fas fa-box-open fa-3x text-muted mb-3" />
                   <h5>Bạn chưa có đơn hàng nào</h5>
@@ -58,23 +110,31 @@ const OrderHistory = () => {
                 <div className="d-flex flex-column gap-3">
                   {orders.map((order) => {
                     const isExpanded = expandedId === order.id;
-                    const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
+                    const items = order.items || [];
+                    const itemCount = items.reduce((s, i) => s + (i.quantity || 1), 0);
+                    const totalAmount = order.totalAmount != null ? order.totalAmount : order.total;
+                    const statusStr = String(order.status || "PENDING").toUpperCase();
+                    const statusBadgeClass = STATUS_BADGE[statusStr] || "bg-secondary-subtle text-secondary";
+                    const statusText = STATUS_LABEL[statusStr] || statusStr;
+
                     return (
                       <div className="card" key={order.id}>
                         <div className="card-body">
                           <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
                             <div>
-                              <div className="fw-semibold">Mã đơn: {order.id}</div>
+                              <div className="fw-semibold">Mã đơn: #{order.id}</div>
                               <div className="small text-muted">
                                 Đặt lúc{" "}
-                                {new Date(order.createdAt).toLocaleString("vi-VN")}
+                                {order.createdAt
+                                  ? new Date(order.createdAt).toLocaleString("vi-VN")
+                                  : "Mới đây"}
                               </div>
                             </div>
                             <span
-                              className={`badge ${STATUS_BADGE[order.status]}`}
+                              className={`badge ${statusBadgeClass}`}
                               style={{ height: "fit-content" }}
                             >
-                              {order.status}
+                              {statusText}
                             </span>
                           </div>
 
@@ -83,7 +143,7 @@ const OrderHistory = () => {
                               {itemCount} sản phẩm
                             </span>
                             <span className="fw-bold text-primary fs-6">
-                              {formatPrice(order.total)}
+                              {formatPrice(totalAmount)}
                             </span>
                           </div>
 
@@ -99,64 +159,60 @@ const OrderHistory = () => {
                           {isExpanded && (
                             <div className="mt-3 pt-3 border-top">
                               <ul className="list-unstyled mb-4">
-                                {order.items.map((item) => (
-                                  <li
-                                    key={item.productId}
-                                    className="d-flex justify-content-between align-items-center mb-2"
-                                  >
-                                    <div className="d-flex align-items-center gap-2">
-                                      <img
-                                        src={item.image}
-                                        alt={item.name}
-                                        style={{ width: 44, height: 44, objectFit: "cover" }}
-                                        className="rounded-2"
-                                      />
-                                      <div className="small">
-                                        <div>{item.name}</div>
-                                        <div className="text-muted">
-                                          {formatPrice(item.price)} × {item.quantity}
+                                {items.map((item, idx) => {
+                                  const pName = item.productName || item.name || "Sản phẩm";
+                                  const pPrice = item.unitPrice || item.price || 0;
+                                  const pQty = item.quantity || 1;
+                                  const pSubtotal = item.subtotal || pPrice * pQty;
+                                  const pImg = item.productImageUrl || item.image || "https://via.placeholder.com/44";
+
+                                  return (
+                                    <li
+                                      key={item.id || item.productId || idx}
+                                      className="d-flex justify-content-between align-items-center mb-2"
+                                    >
+                                      <div className="d-flex align-items-center gap-2">
+                                        <img
+                                          src={pImg}
+                                          alt={pName}
+                                          style={{ width: 44, height: 44, objectFit: "cover" }}
+                                          className="rounded-2"
+                                        />
+                                        <div className="small">
+                                          <div className="fw-semibold">{pName}</div>
+                                          <div className="text-muted">
+                                            {formatPrice(pPrice)} × {pQty}
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
-                                    <span className="small fw-semibold">
-                                      {formatPrice(item.price * item.quantity)}
-                                    </span>
-                                  </li>
-                                ))}
+                                      <span className="small fw-semibold">
+                                        {formatPrice(pSubtotal)}
+                                      </span>
+                                    </li>
+                                  );
+                                })}
                               </ul>
 
                               <div className="row small">
                                 <div className="col-md-6 mb-2">
                                   <div className="text-muted mb-1">Giao đến</div>
                                   <div className="fw-semibold">
-                                    {order.shippingInfo.fullName} ·{" "}
-                                    {order.shippingInfo.phone}
+                                    {order.recipientName || order.shippingInfo?.fullName} ·{" "}
+                                    {order.recipientPhone || order.shippingInfo?.phone}
                                   </div>
-                                  <div>{order.shippingInfo.address}</div>
-                                  {order.shippingInfo.note && (
-                                    <div className="text-muted fst-italic">
-                                      Ghi chú: {order.shippingInfo.note}
+                                  <div>{order.deliveryAddress || order.shippingInfo?.address}</div>
+                                  {(order.note || order.shippingInfo?.note) && (
+                                    <div className="text-muted fst-italic mt-1">
+                                      Ghi chú: {order.note || order.shippingInfo?.note}
                                     </div>
                                   )}
                                 </div>
                                 <div className="col-md-6 mb-2">
                                   <div className="text-muted mb-1">Thanh toán</div>
-                                  <div>
-                                    {order.paymentMethod === "cod"
-                                      ? "Thanh toán khi nhận hàng (COD)"
-                                      : "Chuyển khoản ngân hàng"}
-                                  </div>
+                                  <div>Thanh toán khi nhận hàng (COD)</div>
                                   <div className="d-flex justify-content-between mt-2">
-                                    <span className="text-muted">Tạm tính</span>
-                                    <span>{formatPrice(order.subtotal)}</span>
-                                  </div>
-                                  <div className="d-flex justify-content-between">
-                                    <span className="text-muted">Phí vận chuyển</span>
-                                    <span>
-                                      {order.shippingFee === 0
-                                        ? "Miễn phí"
-                                        : formatPrice(order.shippingFee)}
-                                    </span>
+                                    <span className="text-muted">Tổng cộng</span>
+                                    <span className="fw-bold text-primary">{formatPrice(totalAmount)}</span>
                                   </div>
                                 </div>
                               </div>

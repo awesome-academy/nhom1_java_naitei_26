@@ -6,6 +6,7 @@ import ScrollToTop from "../ScrollToTop";
 import StarRating from "../../components/StarRating";
 import SocialShare from "../../components/SocialShare";
 import ProductCard from "../../components/ProductCard";
+import QuickBuyModal from "../../components/QuickBuyModal";
 import useReviews from "../../hooks/useReviews";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
@@ -34,6 +35,7 @@ const ProductDetail = () => {
 
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [showQuickBuy, setShowQuickBuy] = useState(false);
   const [tab, setTab] = useState("description");
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: "", content: "" });
   const [reviewError, setReviewError] = useState("");
@@ -42,6 +44,7 @@ const ProductDetail = () => {
     setActiveImage(0);
     setQuantity(1);
     setTab("description");
+    setShowQuickBuy(false);
   }, [id]);
 
   if (!product) {
@@ -81,8 +84,7 @@ const ProductDetail = () => {
       navigate("/dang-nhap", { state: { from: { pathname: `/san-pham/${product.id}` } } });
       return;
     }
-    addItem(product.id, quantity);
-    navigate("/thanh-toan");
+    setShowQuickBuy(true);
   };
 
   const handleSubmitReview = (e) => {
@@ -513,6 +515,13 @@ const ProductDetail = () => {
           )}
         </div>
       </section>
+
+      <QuickBuyModal
+        product={product}
+        isOpen={showQuickBuy}
+        onClose={() => setShowQuickBuy(false)}
+        initialQuantity={quantity}
+      />
     </div>
   );
 };
