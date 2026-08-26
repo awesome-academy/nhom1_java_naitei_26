@@ -25,12 +25,9 @@ const ProductDetail = () => {
 
   const product = useMemo(() => getProductById(id), [id]);
   const related = useMemo(() => getRelatedProducts(product), [product]);
-  const baseline = useMemo(
-    () => ({ rating: product?.rating || 0, count: product?.reviewCount || 0 }),
-    [product]
-  );
-  const { reviews, addReview, averageRating, distribution, total, visibleTotal } =
-    useReviews(id, baseline);
+  const { reviews, addReview, averageRating, distribution, total } =
+    useReviews(id);
+  const visibleTotal = total;
 
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -85,7 +82,7 @@ const ProductDetail = () => {
     navigate("/thanh-toan");
   };
 
-  const handleSubmitReview = (e) => {
+  const handleSubmitReview = async (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
       navigate("/dang-nhap", { state: { from: { pathname: `/san-pham/${product.id}` } } });
@@ -95,20 +92,22 @@ const ProductDetail = () => {
       setReviewError("Vui lòng nhập nội dung đánh giá.");
       return;
     }
-    addReview({
-      author: user.fullName || user.email,
-      rating: reviewForm.rating,
-      title: reviewForm.title.trim() || "Đánh giá sản phẩm",
-      content: reviewForm.content.trim(),
-    });
-    setReviewForm({ rating: 5, title: "", content: "" });
-    setReviewError("");
-    Swal.fire({
-      icon: "success",
-      title: "Cảm ơn bạn đã đánh giá!",
-      timer: 1600,
-      showConfirmButton: false,
-    });
+    try {
+      await addReview({
+        rating: reviewForm.rating,
+        content: reviewForm.content.trim(),
+      });
+      setReviewForm({ rating: 5, title: "", content: "" });
+      setReviewError("");
+      Swal.fire({
+        icon: "success",
+        title: "Cảm ơn bạn đã đánh giá!",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      setReviewError(err.message || "Gửi đánh giá thất bại.");
+    }
   };
 
   return (
@@ -414,15 +413,17 @@ const ProductDetail = () => {
                           <div className="border-bottom pb-4 mb-4" key={review.id}>
                             <div className="d-flex justify-content-between align-items-start">
                               <div>
-                                <h6 className="mb-1">{review.title}</h6>
-                                <StarRating value={review.rating} />
+                                <h6 className="mb-1">{review.comment || "Đánh giá sản phẩm"}</h6>
+                                <StarRating value={review.score} />
                                 <span className="ms-2 small text-muted">
-                                  {review.author}
+                                  {review.userName}
                                 </span>
                               </div>
-                              <span className="small text-muted">{review.date}</span>
+                              <span className="small text-muted">
+                                {review.createdAt ? new Date(review.createdAt).toLocaleDateString("vi-VN") : ""}
+                              </span>
                             </div>
-                            <p className="mt-2 mb-0">{review.content}</p>
+                            <p className="mt-2 mb-0">{review.comment}</p>
                           </div>
                         ))
                       )}
