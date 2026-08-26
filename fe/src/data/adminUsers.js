@@ -37,6 +37,15 @@ export function getStatusBadge(value) {
   return USER_STATUSES.find((s) => s.value === value)?.badge || "bg-secondary-subtle text-secondary";
 }
 
+export function getUserStats() {
+  return {
+    total: 15,
+    admins: 2,
+    locked: 0,
+    newThisMonth: 5,
+  };
+}
+
 export function getOrderStatusBadge(status) {
   switch (status) {
     case "PENDING":

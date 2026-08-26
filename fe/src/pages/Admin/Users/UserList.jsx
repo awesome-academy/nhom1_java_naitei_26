@@ -390,23 +390,136 @@ const UserList = () => {
         )}
       </div>
 
-      {/* ---- Modal Chi tiết người dùng & Lịch sử đơn hàng ---- */}
+      {/* ---- Modal Chi tiết người dùng & Đơn hàng (1 Modal duy nhất) ---- */}
       <AdminModal
         show={!!detailUser}
-        title="Chi tiết thông tin khách hàng"
+        title={
+          selectedOrder ? (
+            <div className="d-flex align-items-center gap-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary py-1 px-2 rounded-2 me-1"
+                onClick={() => setSelectedOrder(null)}
+                title="Quay lại thông tin khách hàng"
+              >
+                <i className="fas fa-arrow-left me-1" /> Quay lại
+              </button>
+              <span>Chi tiết đơn hàng #{selectedOrder.id}</span>
+            </div>
+          ) : (
+            "Chi tiết thông tin khách hàng"
+          )
+        }
         size="lg"
-        onClose={() => setDetailUser(null)}
+        onClose={() => {
+          setSelectedOrder(null);
+          setDetailUser(null);
+        }}
         footer={
-          <button
-            type="button"
-            className="btn btn-light px-4"
-            onClick={() => setDetailUser(null)}
-          >
-            Đóng
-          </button>
+          selectedOrder ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline-secondary me-2"
+                onClick={() => setSelectedOrder(null)}
+              >
+                <i className="fas fa-arrow-left me-1" /> Quay lại
+              </button>
+              <button
+                type="button"
+                className="btn btn-light px-4"
+                onClick={() => {
+                  setSelectedOrder(null);
+                  setDetailUser(null);
+                }}
+              >
+                Đóng
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-light px-4"
+              onClick={() => setDetailUser(null)}
+            >
+              Đóng
+            </button>
+          )
         }
       >
-        {detailUser && (
+        {selectedOrder ? (
+          /* View 2: Chi tiết đơn hàng */
+          <div>
+            <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+              <div>
+                <span className="text-muted small">Thời gian đặt: </span>
+                <span className="fw-semibold text-dark small">
+                  {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString("vi-VN") : "—"}
+                </span>
+              </div>
+              <span className={`badge ${getOrderStatusBadge(selectedOrder.status)}`}>
+                {getOrderStatusLabel(selectedOrder.status)}
+              </span>
+            </div>
+
+            {/* Thông tin giao hàng */}
+            <div className="bg-light p-3 rounded-3 mb-3 border small">
+              <div className="mb-1">
+                <strong>Người nhận:</strong> {selectedOrder.recipientName || "—"} ({selectedOrder.recipientPhone || "—"})
+              </div>
+              <div className="mb-1">
+                <strong>Địa chỉ giao:</strong> {selectedOrder.deliveryAddress || "—"}
+              </div>
+              {selectedOrder.note && (
+                <div>
+                  <strong>Ghi chú:</strong> {selectedOrder.note}
+                </div>
+              )}
+            </div>
+
+            {/* Danh sách sản phẩm trong đơn */}
+            <h6 className="fw-bold text-dark mb-2 small">Sản phẩm đã đặt:</h6>
+            <div className="table-responsive border rounded-3 mb-3">
+              <table className="table table-sm align-middle mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th className="text-center">Số lượng</th>
+                    <th className="text-end">Đơn giá</th>
+                    <th className="text-end">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                    selectedOrder.items.map((item, idx) => (
+                      <tr key={idx}>
+                        <td>
+                          <div className="fw-medium text-dark">{item.productName}</div>
+                        </td>
+                        <td className="text-center">{item.quantity}</td>
+                        <td className="text-end text-muted small">{formatPrice(item.unitPrice)}</td>
+                        <td className="text-end fw-semibold text-dark">{formatPrice(item.subtotal)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4" className="text-center text-muted py-2">
+                        Không có sản phẩm
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Tổng cộng */}
+            <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 border">
+              <span className="fw-bold text-dark">Tổng tiền thanh toán:</span>
+              <span className="fs-5 fw-bold text-danger">{formatPrice(selectedOrder.totalAmount)}</span>
+            </div>
+          </div>
+        ) : detailUser ? (
+          /* View 1: Hồ sơ khách hàng & Lịch sử mua sắm */
           <div>
             {detailLoading && (
               <div className="text-muted small mb-2 fst-italic">
@@ -568,98 +681,11 @@ const UserList = () => {
               )}
             </div>
           </div>
-        )}
-      </AdminModal>
-
-      {/* ---- Popup Xem nhanh Chi tiết Đơn hàng ---- */}
-      <AdminModal
-        show={!!selectedOrder}
-        title={selectedOrder ? `Chi tiết đơn hàng #${selectedOrder.id}` : "Chi tiết đơn hàng"}
-        onClose={() => setSelectedOrder(null)}
-        footer={
-          <button
-            type="button"
-            className="btn btn-light px-4"
-            onClick={() => setSelectedOrder(null)}
-          >
-            Đóng
-          </button>
-        }
-      >
-        {selectedOrder && (
-          <div>
-            <div className="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-              <div>
-                <span className="text-muted small">Thời gian đặt: </span>
-                <span className="fw-semibold text-dark small">
-                  {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString("vi-VN") : "—"}
-                </span>
-              </div>
-              <span className={`badge ${getOrderStatusBadge(selectedOrder.status)}`}>
-                {getOrderStatusLabel(selectedOrder.status)}
-              </span>
-            </div>
-
-            {/* Thông tin giao hàng */}
-            <div className="bg-light p-3 rounded-3 mb-3 border small">
-              <div className="mb-1">
-                <strong>Người nhận:</strong> {selectedOrder.recipientName || "—"} ({selectedOrder.recipientPhone || "—"})
-              </div>
-              <div className="mb-1">
-                <strong>Địa chỉ giao:</strong> {selectedOrder.deliveryAddress || "—"}
-              </div>
-              {selectedOrder.note && (
-                <div>
-                  <strong>Ghi chú:</strong> {selectedOrder.note}
-                </div>
-              )}
-            </div>
-
-            {/* Danh sách sản phẩm trong đơn */}
-            <h6 className="fw-bold text-dark mb-2 small">Sản phẩm đã đặt:</h6>
-            <div className="table-responsive border rounded-3 mb-3">
-              <table className="table table-sm align-middle mb-0">
-                <thead className="table-light">
-                  <tr>
-                    <th>Sản phẩm</th>
-                    <th className="text-center">Số lượng</th>
-                    <th className="text-end">Đơn giá</th>
-                    <th className="text-end">Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                    selectedOrder.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td>
-                          <div className="fw-medium text-dark">{item.productName}</div>
-                        </td>
-                        <td className="text-center">{item.quantity}</td>
-                        <td className="text-end text-muted small">{formatPrice(item.unitPrice)}</td>
-                        <td className="text-end fw-semibold text-dark">{formatPrice(item.subtotal)}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" className="text-center text-muted py-2">
-                        Không có sản phẩm
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Tổng cộng */}
-            <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 border">
-              <span className="fw-bold text-dark">Tổng tiền thanh toán:</span>
-              <span className="fs-5 fw-bold text-danger">{formatPrice(selectedOrder.totalAmount)}</span>
-            </div>
-          </div>
-        )}
+        ) : null}
       </AdminModal>
     </div>
   );
 };
 
 export default UserList;
+
