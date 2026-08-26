@@ -37,15 +37,6 @@ export function getStatusBadge(value) {
   return USER_STATUSES.find((s) => s.value === value)?.badge || "bg-secondary-subtle text-secondary";
 }
 
-export function getUserStats() {
-  return {
-    total: 12,
-    admins: 2,
-    locked: 0,
-    newThisMonth: 5,
-  };
-}
-
 export async function fetchAdminUsersApi({ keyword, role, status, page = 0, size = 10 }) {
   const params = new URLSearchParams();
   if (keyword && keyword.trim()) params.append("keyword", keyword.trim());

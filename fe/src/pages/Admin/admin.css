@@ -199,37 +199,6 @@
   overflow: hidden;
 }
 
-/* ---- Biểu đồ doanh thu (thuần CSS) ---- */
-
-.admin-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.75rem;
-  height: 200px;
-}
-
-.admin-chart-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
-  height: 100%;
-}
-
-.admin-chart-bar {
-  width: 100%;
-  max-width: 46px;
-  border-radius: 6px 6px 0 0;
-  background: linear-gradient(180deg, #0aad0a 0%, #37c837 100%);
-  min-height: 4px;
-  transition: opacity 0.15s ease;
-}
-
-.admin-chart-col:hover .admin-chart-bar {
-  opacity: 0.8;
-}
-
 /* ---- Quản lý ảnh sản phẩm ---- */
 
 .admin-image-tile {
