@@ -4,18 +4,19 @@ import PageHeader from "../../components/admin/PageHeader";
 import StatCard from "../../components/admin/StatCard";
 import { formatPrice } from "../../utils/format";
 import {
+  fetchAdminOrdersApi,
   getOrderStats,
   getRevenueByMonth,
   getTopProducts,
   getOrders,
   getStatusBadge,
+  getStatusLabel,
   ORDER_STATUSES,
 } from "../../data/adminOrders";
 import { getProductStats, getLowStockProducts, loadAdminProducts } from "../../data/adminProducts";
 import { loadAdminCategories } from "../../data/adminCategories";
 import { getUserStats } from "../../data/adminUsers";
 
-// Rút gọn số tiền cho nhãn biểu đồ: 12500000 -> "12,5 tr".
 function formatCompact(value) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace(".", ",")} tr`;
   if (value >= 1_000) return `${Math.round(value / 1_000)} k`;
@@ -23,39 +24,38 @@ function formatCompact(value) {
 }
 
 const Dashboard = () => {
-  const [loading, setLoading] = useState(true);
-  const [productStats, setProductStats] = useState({ total: 0, outOfStock: 0, lowStock: 0, inventoryValue: 0 });
-  const [lowStock, setLowStock] = useState([]);
+  const [orders, setOrders] = useState([]);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([loadAdminCategories(), loadAdminProducts()])
-      .then(() => {
-        // After data is loaded, use synchronous cache functions
-        const stats = getProductStats();
-        const lowStockProducts = getLowStockProducts(5);
-        setProductStats(stats);
-        setLowStock(lowStockProducts);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const loadDashboardOrders = async () => {
+      try {
+        const data = await fetchAdminOrdersApi();
+        setOrders(data);
+      } catch (err) {
+        console.warn("Lỗi nạp API Admin orders cho Dashboard, dùng fallback mock:", err);
+        setOrders(getOrders());
+      }
+    };
+    loadDashboardOrders();
   }, []);
 
-  const orderStats = useMemo(() => getOrderStats(), [loading]);
-  const userStats = useMemo(() => getUserStats(), [loading]);
-  const revenueByMonth = useMemo(() => getRevenueByMonth(6), [loading]);
-  const topProducts = useMemo(() => getTopProducts(5), [loading]);
-  const orders = useMemo(() => getOrders(), [loading]);
+  const orderStats = useMemo(() => getOrderStats(orders), [orders]);
+  const productStats = useMemo(() => getProductStats(), []);
+  const userStats = useMemo(() => getUserStats(), []);
+  const revenueByMonth = useMemo(() => getRevenueByMonth(6, orders), [orders]);
+  const topProducts = useMemo(() => getTopProducts(5, orders), [orders]);
+  const lowStock = useMemo(() => getLowStockProducts(5), []);
   const recentOrders = orders.slice(0, 6);
 
-  // Đếm số đơn theo từng trạng thái một lần thay vì quét lại danh sách trong lúc render.
+  const displayStatuses = ORDER_STATUSES;
+
   const statusCounts = useMemo(
     () =>
-      ORDER_STATUSES.map((status) => ({
+      displayStatuses.map((status) => ({
         ...status,
         count: orders.filter((o) => o.status === status.value).length,
       })),
-    [orders]
+    [orders, displayStatuses]
   );
 
   if (loading) {
@@ -160,7 +160,7 @@ const Dashboard = () => {
                   <div className="d-flex justify-content-between align-items-center small mb-1">
                     <span>
                       <i className={`fas ${status.icon} me-2 text-muted`} />
-                      {status.value}
+                      {status.label}
                     </span>
                     <span className="fw-semibold">{count}</span>
                   </div>
@@ -214,17 +214,17 @@ const Dashboard = () => {
                           to={`/admin/don-hang/${order.id}`}
                           className="fw-semibold text-decoration-none"
                         >
-                          {order.id}
+                          #{order.id}
                         </Link>
                         <div className="small text-muted">
                           {new Date(order.createdAt).toLocaleDateString("vi-VN")}
                         </div>
                       </td>
-                      <td className="small">{order.customer.fullName}</td>
+                      <td className="small">{order.customer?.fullName}</td>
                       <td className="text-end fw-semibold">{formatPrice(order.total)}</td>
                       <td>
                         <span className={`badge ${getStatusBadge(order.status)}`}>
-                          {order.status}
+                          {getStatusLabel(order.status)}
                         </span>
                       </td>
                     </tr>

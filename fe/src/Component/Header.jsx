@@ -46,6 +46,12 @@ const Header = () => {
     setDrinkMenuOpen(false);
   }, [location.pathname, location.search]);
 
+  const [avatarError, setAvatarError] = useState(false);
+
+  React.useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     const q = keyword.trim();
@@ -173,14 +179,12 @@ const Header = () => {
                     onClick={() => setUserMenuOpen((prev) => !prev)}
                     aria-expanded={userMenuOpen}
                   >
-                    {user?.avatarUrl ? (
+                    {user?.avatarUrl && !avatarError ? (
                       <img
                         src={user.avatarUrl}
                         alt="Avatar"
                         className="fresh-avatar-img"
-                        onError={(e) => {
-                          e.target.style.display = "none";
-                        }}
+                        onError={() => setAvatarError(true)}
                       />
                     ) : (
                       <div className="fresh-avatar-fallback">
