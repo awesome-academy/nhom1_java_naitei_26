@@ -749,7 +749,7 @@ export function getCategoryName(slug) {
 }
 
 export function getBrands() {
-  return [...new Set(PRODUCTS.map((p) => p.brand))].sort((a, b) =>
+  return [...new Set(PRODUCTS.map((p) => p.brand).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "vi")
   );
 }
