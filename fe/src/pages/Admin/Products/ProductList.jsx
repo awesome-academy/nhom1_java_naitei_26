@@ -15,14 +15,18 @@ import {
   getStockLabel,
   PRODUCT_SORTS,
   STOCK_FILTERS,
+  loadAdminProducts,
 } from "../../../data/adminProducts";
-import { getCategories, getTypeLabel, PRODUCT_TYPES } from "../../../data/adminCategories";
+import { getCategories, getTypeLabel, PRODUCT_TYPES, loadAdminCategories } from "../../../data/adminCategories";
+import { CATEGORIES } from "../../../data/products";
 
 const PAGE_SIZE = 10;
 
 const ProductList = () => {
   // Danh mục có thể mở sẵn bộ lọc qua ?category=<slug> từ trang Quản lý danh mục.
   const [searchParams, setSearchParams] = useSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [apiCategories, setApiCategories] = useState([]);
 
   const [filters, setFilters] = useState({
     keyword: "",
@@ -35,31 +39,74 @@ const ProductList = () => {
   const [page, setPage] = useState(1);
   const [version, setVersion] = useState(0);
 
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([loadAdminCategories(), loadAdminProducts()])
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [version]);
+
+  // Fetch categories from API to ensure filter uses database categories
+  useEffect(() => {
+    const fetchApiCategories = async () => {
+      try {
+        const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+        const res = await fetch(`${API_BASE_URL}/api/categories`, {
+          credentials: "include"
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.data) {
+            setApiCategories(data.data.map(c => ({
+              id: c.id,
+              name: c.name,
+              slug: c.slug,
+              type: c.label ? c.label.toLowerCase() : "food",
+              active: c.status === "ACTIVE"
+            })));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch categories from API", err);
+      }
+    };
+    fetchApiCategories();
+  }, []);
+
+  // All products, stats, and brands from cache (synchronous)
   const products = useMemo(
-    () => filterProducts(filters),
+    () => (loading ? [] : filterProducts(filters)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filters, version]
+    [filters, version, loading]
   );
   const stats = useMemo(
-    () => getProductStats(),
+    () => (loading ? { total: 0, outOfStock: 0, lowStock: 0, inventoryValue: 0 } : getProductStats()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version]
+    [version, loading]
   );
   const brands = useMemo(
-    () => getBrands(),
+    () => (loading ? [] : getBrands()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version]
+    [version, loading]
   );
-  const categories = useMemo(() => getCategories(), []);
+
+  const categories = useMemo(() => (loading ? [] : getCategories()), [loading]);
   const categoryNames = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.slug, c.name])),
     [categories]
   );
 
   // Danh mục hiển thị trong ô lọc phụ thuộc phân loại đang chọn.
-  const visibleCategories = filters.type
-    ? categories.filter((c) => c.type === filters.type)
-    : categories;
+  const visibleCategories = useMemo(
+    () => {
+      const source = apiCategories.length > 0 ? apiCategories : CATEGORIES;
+      if (filters.type) {
+        return source.filter((c) => c.type === filters.type || c.label === filters.type);
+      }
+      return source;
+    },
+    [filters.type, apiCategories]
+  );
 
   const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
   const pageItems = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -88,9 +135,14 @@ const ProductList = () => {
   const hasActiveFilter =
     filters.keyword || filters.type || filters.category || filters.brand || filters.stock;
 
-  const handleToggleActive = (product) => {
-    updateProduct(product.id, { active: !product.active });
-    setVersion((v) => v + 1);
+  const handleToggleActive = async (product) => {
+    try {
+      const newActive = !product.active;
+      await updateProduct(product.id, { ...product, active: newActive });
+      setVersion((v) => v + 1);
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Lỗi", text: err.message });
+    }
   };
 
   const handleDelete = async (product) => {
@@ -103,16 +155,20 @@ const ProductList = () => {
       cancelButtonText: "Huỷ",
       confirmButtonColor: "#dc3545",
     });
-    if (!result.isConfirmed) return;
-
-    deleteProduct(product.id);
-    setVersion((v) => v + 1);
-    Swal.fire({
-      icon: "success",
-      title: "Đã xoá sản phẩm",
-      timer: 1600,
-      showConfirmButton: false,
-    });
+    if (result.isConfirmed) {
+      try {
+        await deleteProduct(product.id);
+        setVersion((v) => v + 1);
+        Swal.fire({
+          icon: "success",
+          title: "Đã xoá sản phẩm",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } catch (err) {
+        Swal.fire({ icon: "error", title: "Không thể xoá sản phẩm", text: err.message });
+      }
+    }
   };
 
   return (
@@ -260,7 +316,13 @@ const ProductList = () => {
 
       {/* ---- Bảng ---- */}
       <div className="admin-card">
-        {pageItems.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Đang tải...</span>
+            </div>
+          </div>
+        ) : pageItems.length === 0 ? (
           <EmptyState
             icon="fa-box-open"
             title="Không tìm thấy sản phẩm nào"
@@ -334,15 +396,6 @@ const ProductList = () => {
                         </div>
                       </td>
                       <td className="text-end text-nowrap">
-                        <Link
-                          to={`/san-pham/${product.id}`}
-                          className="btn btn-sm btn-light me-1"
-                          title="Xem ở trang bán hàng"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <i className="fas fa-eye" />
-                        </Link>
                         <Link
                           to={`/admin/san-pham/${product.id}/chinh-sua`}
                           className="btn btn-sm btn-light me-1"

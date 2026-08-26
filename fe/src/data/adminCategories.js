@@ -1,11 +1,5 @@
-// Dữ liệu mock cho màn hình Quản lý danh mục sản phẩm (admin).
-// Seed lấy từ CATEGORIES của user site để hai bên hiển thị giống nhau.
-// Khi backend có API: thay phần thân các hàm bên dưới bằng fetch tới /api/admin/categories.
-
-import { CATEGORIES, PRODUCT_TYPES } from "./products";
-import { loadCollection, saveCollection, nextId, normalize } from "./localStore";
-
-const CATEGORIES_KEY = "fd_admin_categories";
+import { PRODUCT_TYPES } from "./products";
+import { normalize } from "./localStore";
 
 export { PRODUCT_TYPES };
 
@@ -13,20 +7,6 @@ export function getTypeLabel(value) {
   return PRODUCT_TYPES.find((t) => t.value === value)?.label || value;
 }
 
-const SEED_DESCRIPTIONS = {
-  "rau-cu-trai-cay": "Rau xanh, củ quả và trái cây tươi nhập mỗi sáng.",
-  "thit-ca-hai-san": "Thịt tươi, cá và hải sản bảo quản lạnh.",
-  "sua-trung": "Sữa tươi, bơ, phô mai và trứng các loại.",
-  "banh-ngu-coc": "Bánh mì, bánh ngọt và ngũ cốc ăn sáng.",
-  "do-an-vat": "Snack, bánh kẹo và đồ ăn vặt đóng gói.",
-  "thuc-pham-che-bien": "Đồ hộp, thực phẩm đông lạnh và món ăn liền.",
-  "nuoc-giai-khat": "Nước ngọt, nước khoáng và nước tăng lực.",
-  "nuoc-ep-sinh-to": "Nước ép trái cây và sinh tố đóng chai.",
-  "tra-ca-phe": "Trà, cà phê hoà tan và cà phê rang xay.",
-  "sua-uong": "Sữa uống liền, sữa chua uống và yogurt.",
-};
-
-// Chuyển tên danh mục thành slug (dùng khi thêm danh mục mới).
 export function slugify(name = "") {
   return normalize(name)
     .replace(/[^a-z0-9\s-]/g, "")
@@ -34,81 +14,131 @@ export function slugify(name = "") {
     .replace(/\s+/g, "-");
 }
 
-function buildSeed() {
-  return CATEGORIES.map((category, index) => ({
-    id: index + 1,
-    name: category.name,
-    slug: category.slug,
-    type: category.type,
-    description: SEED_DESCRIPTIONS[category.slug] || "",
-    sortOrder: index + 1,
-    active: true,
-    createdAt: new Date(2025, 10, 2 + index).toISOString(),
-  }));
-}
+let ADMIN_CATEGORIES = [];
 
-function readCategories() {
-  return loadCollection(CATEGORIES_KEY, buildSeed);
+export async function loadAdminCategories() {
+  try {
+    const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+    const res = await fetch(`${API_BASE_URL}/api/categories`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.data) {
+        ADMIN_CATEGORIES = data.data.map(c => ({
+          id: c.id,
+          name: c.name,
+          slug: c.slug,
+          type: c.label ? c.label.toLowerCase() : "food",
+          description: c.description || "",
+          sortOrder: c.id,
+          active: c.status === "ACTIVE",
+          createdAt: c.createdAt || new Date().toISOString()
+        }));
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load admin categories", err);
+  }
 }
 
 export function getCategories() {
-  return readCategories().sort((a, b) => a.sortOrder - b.sortOrder);
+  return ADMIN_CATEGORIES.sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export function getCategoryById(id) {
-  return readCategories().find((c) => String(c.id) === String(id)) || null;
+  return ADMIN_CATEGORIES.find((c) => String(c.id) === String(id)) || null;
 }
 
 export function getCategoryNameBySlug(slug) {
-  return readCategories().find((c) => c.slug === slug)?.name || slug;
+  return ADMIN_CATEGORIES.find((c) => c.slug === slug)?.name || slug;
 }
 
-// Slug phải là duy nhất vì user site dùng nó để lọc sản phẩm.
 export function isSlugTaken(slug, exceptId = null) {
-  return readCategories().some(
+  return ADMIN_CATEGORIES.some(
     (c) => c.slug === slug && String(c.id) !== String(exceptId)
   );
 }
 
-export function createCategory(data) {
-  const categories = readCategories();
-  const category = {
-    id: nextId(categories),
-    name: data.name.trim(),
-    slug: data.slug?.trim() || slugify(data.name),
-    type: data.type || "food",
+export async function createCategory(data) {
+  const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+  const token = localStorage.getItem("accessToken");
+
+  const payload = {
+    name: data.name?.trim() || "",
+    slug: data.slug?.trim() || slugify(data.name || ""),
     description: data.description?.trim() || "",
-    sortOrder: Number(data.sortOrder) || categories.length + 1,
-    active: data.active !== false,
-    createdAt: new Date().toISOString(),
+    status: data.active !== false ? "ACTIVE" : "INACTIVE",
+    label: data.type ? data.type.toUpperCase() : "FOOD"
   };
-  saveCollection(CATEGORIES_KEY, [...categories, category]);
-  return category;
+
+  const res = await fetch(`${API_BASE_URL}/api/categories`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    credentials: "include",
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || "Failed to create category");
+  }
+
+  const resData = await res.json();
+  return resData.data;
 }
 
-export function updateCategory(id, patch) {
-  const categories = readCategories();
-  const index = categories.findIndex((c) => String(c.id) === String(id));
-  if (index === -1) return null;
+export async function updateCategory(id, patch) {
+  const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+  const token = localStorage.getItem("accessToken");
 
-  const updated = {
-    ...categories[index],
-    ...patch,
-    name: (patch.name ?? categories[index].name).trim(),
-    slug: (patch.slug ?? categories[index].slug).trim(),
-    sortOrder: Number(patch.sortOrder ?? categories[index].sortOrder),
-    id: categories[index].id,
+  const existing = getCategoryById(id) || {};
+  const merged = { ...existing, ...patch };
+
+  const payload = {
+    name: merged.name?.trim() || "",
+    slug: merged.slug?.trim() || "",
+    description: merged.description?.trim() || "",
+    status: merged.active !== false ? "ACTIVE" : "INACTIVE",
+    label: merged.type ? merged.type.toUpperCase() : "FOOD"
   };
-  categories[index] = updated;
-  saveCollection(CATEGORIES_KEY, categories);
-  return updated;
+
+  const res = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    credentials: "include",
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || "Failed to update category");
+  }
+
+  const resData = await res.json();
+  return resData.data;
 }
 
-export function deleteCategory(id) {
-  const categories = readCategories();
-  const remaining = categories.filter((c) => String(c.id) !== String(id));
-  if (remaining.length === categories.length) return false;
-  saveCollection(CATEGORIES_KEY, remaining);
+export async function deleteCategory(id) {
+  const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+  const token = localStorage.getItem("accessToken");
+
+  const res = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`
+    },
+    credentials: "include"
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.message || "Failed to delete category");
+  }
   return true;
 }
 

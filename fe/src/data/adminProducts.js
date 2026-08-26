@@ -1,13 +1,16 @@
-// Dữ liệu mock cho màn hình Quản lý sản phẩm (admin).
-// Seed lấy từ catalog của user site, sau đó admin thêm/sửa/xoá trên bản localStorage.
-// Khi backend có API: thay phần thân các hàm bên dưới bằng fetch tới /api/admin/products,
-// riêng ảnh sẽ upload qua multipart thay vì lưu base64 như hiện tại.
-
-import { getAllProducts } from "./products";
-import { loadCollection, saveCollection, nextId, normalize } from "./localStore";
+// Product management for admin - fetches from database API with caching
+import { normalize } from "./localStore";
 import { slugify } from "./adminCategories";
+import { refreshProducts } from "./products";
 
-const PRODUCTS_KEY = "fd_admin_products";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("accessToken");
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
 
 // Ngưỡng cảnh báo tồn kho thấp trên Dashboard và bộ lọc kho.
 export const LOW_STOCK_THRESHOLD = 20;
@@ -40,117 +43,207 @@ export function getStockLabel(stock) {
   return STOCK_FILTERS.find((f) => f.value === level)?.label || "";
 }
 
-function buildSeed() {
-  return getAllProducts().map((product) => ({
-    id: product.id,
-    name: product.name,
-    slug: product.slug,
-    type: product.type,
-    category: product.category,
-    brand: product.brand,
-    price: product.price,
-    oldPrice: product.oldPrice || 0,
-    unit: product.unit,
-    stock: product.stock,
-    images: product.images || [],
-    shortDescription: product.shortDescription || "",
-    description: product.description || "",
-    origin: product.origin || "",
-    expiry: product.expiry || "",
-    storage: product.storage || "",
-    rating: product.rating || 0,
-    reviewCount: product.reviewCount || 0,
-    active: true,
-    createdAt: new Date(2025, 10, 2 + product.id).toISOString(),
-  }));
+// Map API product to frontend format
+function mapApiProduct(apiProduct) {
+  return {
+    id: apiProduct.id,
+    name: apiProduct.name,
+    slug: apiProduct.slug,
+    type: apiProduct.type ? apiProduct.type.toLowerCase() : "food",
+    category: apiProduct.categorySlug,
+    categoryName: apiProduct.categoryName,
+    brand: apiProduct.brand || "",
+    price: apiProduct.price,
+    oldPrice: apiProduct.oldPrice || 0,
+    unit: apiProduct.unit || "",
+    stock: apiProduct.stockQuantity || 0,
+    images: apiProduct.images || [],
+    shortDescription: apiProduct.shortDescription || "",
+    description: apiProduct.description || "",
+    origin: apiProduct.origin || "",
+    expiry: apiProduct.expiry || "",
+    storage: apiProduct.storage || "",
+    rating: apiProduct.rating || 0,
+    reviewCount: apiProduct.reviewCount || 0,
+    active: apiProduct.status === "ACTIVE",
+    categoryId: apiProduct.categoryId,
+    createdAt: apiProduct.createdAt,
+    updatedAt: apiProduct.updatedAt,
+  };
 }
 
-function readProducts() {
-  return loadCollection(PRODUCTS_KEY, buildSeed);
+// Map frontend product to API request body
+function mapToApiBody(data) {
+  return {
+    name: data.name,
+    slug: data.slug,
+    type: data.type ? data.type.toUpperCase() : "FOOD",
+    categoryId: data.categoryId,
+    brand: data.brand || null,
+    price: data.price,
+    oldPrice: data.oldPrice || null,
+    unit: data.unit || null,
+    stockQuantity: data.stock,
+    shortDescription: data.shortDescription || null,
+    description: data.description || null,
+    origin: data.origin || null,
+    expiry: data.expiry || null,
+    storage: data.storage || null,
+    status: data.active ? "ACTIVE" : "INACTIVE",
+  };
 }
 
+// ===== CACHE =====
+let _productsCache = null;
+let _productsCachePromise = null;
+
+function clearCache() {
+  _productsCache = null;
+  _productsCachePromise = null;
+}
+
+export async function loadAdminProducts() {
+  // Return cache if available
+  if (_productsCache) return _productsCache;
+  
+  // If already fetching, wait for that promise
+  if (_productsCachePromise) return _productsCachePromise;
+  
+  _productsCachePromise = fetch(`${API_BASE_URL}/api/products?size=1000`, {
+    headers: getAuthHeaders(),
+    credentials: "include"
+  })
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then(data => {
+      if (data.data && data.data.content) {
+        _productsCache = data.data.content.map(mapApiProduct);
+        return _productsCache;
+      }
+      _productsCache = [];
+      return _productsCache;
+    })
+    .catch(err => {
+      console.error("Failed to load products from API", err);
+      _productsCache = [];
+      return _productsCache;
+    })
+    .finally(() => {
+      _productsCachePromise = null;
+    });
+  
+  return _productsCachePromise;
+}
+
+// ===== SYNCHRONOUS HELPERS (use cache) =====
+
+// Get products from cache (must call loadAdminProducts first)
 export function getProducts() {
-  return readProducts();
+  return _productsCache || [];
 }
 
+// Get product by ID from cache
 export function getProductById(id) {
-  return readProducts().find((p) => String(p.id) === String(id)) || null;
+  const products = _productsCache || [];
+  return products.find((p) => String(p.id) === String(id)) || null;
 }
 
+// Check if slug is taken
 export function isSlugTaken(slug, exceptId = null) {
-  return readProducts().some(
+  const products = _productsCache || [];
+  return products.some(
     (p) => p.slug === slug && String(p.id) !== String(exceptId)
   );
 }
 
-// Danh sách thương hiệu hiện có, dùng cho gợi ý trong form và bộ lọc.
+// Get unique brands
 export function getBrands() {
-  return [...new Set(readProducts().map((p) => p.brand).filter(Boolean))].sort((a, b) =>
+  const products = _productsCache || [];
+  return [...new Set(products.map((p) => p.brand).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "vi")
   );
 }
 
+// Count products by category slug
 export function countProductsByCategory(slug) {
-  return readProducts().filter((p) => p.category === slug).length;
+  const products = _productsCache || [];
+  return products.filter((p) => p.category === slug).length;
 }
 
-function normalizeInput(data, fallback = {}) {
-  return {
-    name: (data.name ?? fallback.name ?? "").trim(),
-    slug: (data.slug ?? fallback.slug ?? "").trim() || slugify(data.name ?? fallback.name ?? ""),
-    type: data.type ?? fallback.type ?? "food",
-    category: data.category ?? fallback.category ?? "",
-    brand: (data.brand ?? fallback.brand ?? "").trim(),
-    price: Number(data.price ?? fallback.price ?? 0),
-    oldPrice: Number(data.oldPrice ?? fallback.oldPrice ?? 0),
-    unit: (data.unit ?? fallback.unit ?? "").trim(),
-    stock: Number(data.stock ?? fallback.stock ?? 0),
-    images: data.images ?? fallback.images ?? [],
-    shortDescription: (data.shortDescription ?? fallback.shortDescription ?? "").trim(),
-    description: (data.description ?? fallback.description ?? "").trim(),
-    origin: (data.origin ?? fallback.origin ?? "").trim(),
-    expiry: (data.expiry ?? fallback.expiry ?? "").trim(),
-    storage: (data.storage ?? fallback.storage ?? "").trim(),
-    active: data.active ?? fallback.active ?? true,
-  };
+// Get products count by category slug
+export function countProductsByCategoryId(categoryId) {
+  const products = _productsCache || [];
+  return products.filter((p) => p.categoryId === categoryId).length;
 }
 
-export function createProduct(data) {
-  const products = readProducts();
-  const product = {
-    id: nextId(products),
-    ...normalizeInput(data),
-    rating: 0,
-    reviewCount: 0,
-    createdAt: new Date().toISOString(),
-  };
-  const saved = saveCollection(PRODUCTS_KEY, [product, ...products]);
-  if (!saved) throw new Error("Bộ nhớ trình duyệt đã đầy, hãy bớt ảnh rồi lưu lại.");
-  return product;
+// ===== ASYNC OPERATIONS (mutate cache) =====
+
+export async function createProduct(data) {
+  const body = mapToApiBody(data);
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/products`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    const result = await res.json();
+    clearCache(); // Invalidate admin cache
+    refreshProducts().catch(() => {}); // Sync user-facing data
+    return mapApiProduct(result.data);
+  } catch (err) {
+    console.error("Failed to create product", err);
+    throw err;
+  }
 }
 
-export function updateProduct(id, data) {
-  const products = readProducts();
-  const index = products.findIndex((p) => String(p.id) === String(id));
-  if (index === -1) return null;
-
-  const updated = {
-    ...products[index],
-    ...normalizeInput(data, products[index]),
-    id: products[index].id,
-  };
-  products[index] = updated;
-  const saved = saveCollection(PRODUCTS_KEY, products);
-  if (!saved) throw new Error("Bộ nhớ trình duyệt đã đầy, hãy bớt ảnh rồi lưu lại.");
-  return updated;
+export async function updateProduct(id, data) {
+  const body = mapToApiBody(data);
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+      method: "PUT",
+      headers: getAuthHeaders(),
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    const result = await res.json();
+    clearCache(); // Invalidate admin cache
+    refreshProducts().catch(() => {}); // Sync user-facing data
+    return mapApiProduct(result.data);
+  } catch (err) {
+    console.error("Failed to update product", err);
+    throw err;
+  }
 }
 
-export function deleteProduct(id) {
-  const products = readProducts();
-  const remaining = products.filter((p) => String(p.id) !== String(id));
-  if (remaining.length === products.length) return false;
-  saveCollection(PRODUCTS_KEY, remaining);
-  return true;
+export async function deleteProduct(id) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/products/${id}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    clearCache(); // Invalidate admin cache
+    refreshProducts().catch(() => {}); // Sync user-facing data
+    return true;
+  } catch (err) {
+    console.error("Failed to delete product", err);
+    throw err;
+  }
 }
 
 export function filterProducts({
@@ -161,9 +254,10 @@ export function filterProducts({
   stock = "",
   sort = "newest",
 } = {}) {
+  const products = _productsCache || [];
   const q = normalize(keyword.trim());
 
-  const result = readProducts().filter((product) => {
+  const result = products.filter((product) => {
     if (type && product.type !== type) return false;
     if (category && product.category !== category) return false;
     if (brand && product.brand !== brand) return false;
@@ -202,7 +296,7 @@ export const PRODUCT_SORTS = [
 ];
 
 export function getProductStats() {
-  const products = readProducts();
+  const products = _productsCache || [];
   return {
     total: products.length,
     outOfStock: products.filter((p) => p.stock <= 0).length,
@@ -213,8 +307,11 @@ export function getProductStats() {
 
 // Sản phẩm cần nhập thêm, sắp xếp theo tồn kho ít nhất (hiển thị ở Dashboard).
 export function getLowStockProducts(limit = 5) {
-  return readProducts()
+  const products = _productsCache || [];
+  return products
     .filter((p) => p.stock < LOW_STOCK_THRESHOLD)
     .sort((a, b) => a.stock - b.stock)
     .slice(0, limit);
 }
+
+export { loadAdminProducts as loadAdminProductsFromApi };

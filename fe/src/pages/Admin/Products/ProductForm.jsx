@@ -12,13 +12,14 @@ import {
   getBrands,
   LOW_STOCK_THRESHOLD,
 } from "../../../data/adminProducts";
-import { getCategories, slugify, PRODUCT_TYPES } from "../../../data/adminCategories";
+import { getCategories, slugify, PRODUCT_TYPES, loadAdminCategories } from "../../../data/adminCategories";
 
 const EMPTY_FORM = {
   name: "",
   slug: "",
   type: "food",
   category: "",
+  categoryId: null,
   brand: "",
   price: "",
   oldPrice: "",
@@ -85,14 +86,23 @@ const ProductForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
+  const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [notFound, setNotFound] = useState(false);
   const [slugTouched, setSlugTouched] = useState(false);
 
-  const categories = useMemo(() => getCategories(), []);
-  const brands = useMemo(() => getBrands(), []);
+  // Nạp dữ liệu danh mục từ API và sản phẩm từ localStorage
+  useEffect(() => {
+    setLoading(true);
+    loadAdminCategories()
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const categories = useMemo(() => (loading ? [] : getCategories()), [loading]);
+  const brands = useMemo(() => (loading ? [] : getBrands()), [loading]);
 
   // Nạp dữ liệu khi ở chế độ chỉnh sửa.
   useEffect(() => {
@@ -113,6 +123,7 @@ const ProductForm = () => {
       slug: product.slug,
       type: product.type,
       category: product.category,
+      categoryId: product.categoryId || null,
       brand: product.brand,
       price: String(product.price),
       oldPrice: product.oldPrice ? String(product.oldPrice) : "",
@@ -127,7 +138,7 @@ const ProductForm = () => {
       active: product.active !== false,
     });
     setSlugTouched(true);
-  }, [id, isEditing]);
+  }, [id, isEditing, loading]);
 
   // Khi thêm mới, đường dẫn bám theo tên cho tới lúc người dùng tự sửa.
   useEffect(() => {
@@ -141,13 +152,18 @@ const ProductForm = () => {
       // Đổi phân loại thì bỏ danh mục cũ nếu nó không thuộc phân loại mới.
       if (key === "type") {
         const stillValid = categories.some((c) => c.slug === prev.category && c.type === value);
-        return { ...prev, type: value, category: stillValid ? prev.category : "" };
+        return { ...prev, type: value, category: stillValid ? prev.category : "", categoryId: stillValid ? prev.categoryId : null };
+      }
+      // Khi chọn danh mục, tự động lấy categoryId từ danh sách danh mục
+      if (key === "category") {
+        const found = categories.find((c) => c.slug === value);
+        return { ...prev, category: value, categoryId: found ? found.id : null };
       }
       return { ...prev, [key]: value };
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const nextErrors = validate(form, isEditing ? id : null);
     setErrors(nextErrors);
@@ -161,22 +177,20 @@ const ProductForm = () => {
 
     try {
       if (isEditing) {
-        updateProduct(id, payload);
+        await updateProduct(id, payload);
       } else {
-        createProduct(payload);
+        await createProduct(payload);
       }
+      Swal.fire({
+        icon: "success",
+        title: isEditing ? "Đã cập nhật sản phẩm" : "Đã thêm sản phẩm",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+      navigate("/admin/san-pham");
     } catch (err) {
       Swal.fire({ icon: "error", title: "Không lưu được sản phẩm", text: err.message });
-      return;
     }
-
-    Swal.fire({
-      icon: "success",
-      title: isEditing ? "Đã cập nhật sản phẩm" : "Đã thêm sản phẩm",
-      timer: 1600,
-      showConfirmButton: false,
-    });
-    navigate("/admin/san-pham");
   };
 
   if (notFound) {
