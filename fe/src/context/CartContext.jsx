@@ -1,10 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getProductById } from "../data/products";
 
-// Giỏ hàng phía client, lưu tạm trong localStorage.
-// Khi nối API thật: thay các hàm bên dưới bằng lời gọi GET/POST/PATCH/DELETE
-// tới /api/cart tương ứng — phần UI (Cart.jsx, Checkout.jsx) không cần đổi.
-
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
 const CartContext = createContext(null);
@@ -22,12 +18,20 @@ function writeCart(items) {
   localStorage.setItem(CART_KEY, JSON.stringify(items));
 }
 
+function getAuthHeaders() {
+  const token = localStorage.getItem("accessToken");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function hasToken() {
+  return !!localStorage.getItem("accessToken");
+}
+
 export function CartProvider({ children }) {
   const [items, setItems] = useState(() => readCart());
   const [apiCart, setApiCart] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Tải dữ liệu giỏ hàng từ API Backend nếu người dùng đã đăng nhập
   const fetchCart = async () => {
     const token = localStorage.getItem("accessToken");
     if (!token) {
@@ -38,17 +42,17 @@ export function CartProvider({ children }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/cart`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       });
       const data = await res.json();
       if (res.ok && data.data) {
         setApiCart(data.data);
+      } else {
+        setApiCart(null);
       }
     } catch (err) {
-      console.error("Lỗi khi tải giỏ hàng từ API Backend:", err);
+      console.error("Lỗi khi tải giỏ hàng:", err);
+      setApiCart(null);
     } finally {
       setLoading(false);
     }
@@ -58,7 +62,6 @@ export function CartProvider({ children }) {
     fetchCart();
   }, []);
 
-  // Đồng bộ khi giỏ hàng thay đổi ở tab khác.
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key === CART_KEY) setItems(readCart());
@@ -74,28 +77,19 @@ export function CartProvider({ children }) {
   };
 
   const addItem = async (productId, quantity = 1) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/cart/items`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ productId, quantity }),
-        });
-        const data = await res.json();
-        if (res.ok && data.data) {
-          setApiCart(data.data);
-          return;
-        }
-      } catch (err) {
-        console.error("Lỗi khi thêm sản phẩm qua API:", err);
+    if (hasToken()) {
+      const res = await fetch(`${API_BASE_URL}/api/cart/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ productId, quantity }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Thêm sản phẩm vào giỏ hàng thất bại");
       }
+      setApiCart(data.data);
+      return;
     }
-
-    // Client fallback nếu chưa có token
     const product = getProductById(productId);
     if (!product) return;
     setItems((prev) => {
@@ -115,89 +109,67 @@ export function CartProvider({ children }) {
   };
 
   const updateQuantity = async (cartItemIdOrProductId, quantity) => {
-    const token = localStorage.getItem("accessToken");
-    if (token && apiCart) {
-      try {
-        const item = apiCart.items?.find(
-          (i) => i.id === cartItemIdOrProductId || i.productId === cartItemIdOrProductId
-        );
-        const itemId = item ? item.id : cartItemIdOrProductId;
-        const res = await fetch(`${API_BASE_URL}/api/cart/items/${itemId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ quantity }),
-        });
-        const data = await res.json();
-        if (res.ok && data.data) {
-          setApiCart(data.data);
-          return;
-        }
-      } catch (err) {
-        console.error("Lỗi khi cập nhật số lượng qua API:", err);
+    if (hasToken()) {
+      const item = apiCart?.items?.find(
+        (i) => i.id === cartItemIdOrProductId || i.productId === cartItemIdOrProductId
+      );
+      const itemId = item ? item.id : cartItemIdOrProductId;
+      const res = await fetch(`${API_BASE_URL}/api/cart/items/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ quantity }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Cập nhật số lượng thất bại");
       }
+      setApiCart(data.data);
+      return;
     }
-
     const product = getProductById(cartItemIdOrProductId);
     const clamped = Math.max(1, Math.min(product?.stock || 1, quantity));
     persist(items.map((i) => (i.productId === cartItemIdOrProductId ? { ...i, quantity: clamped } : i)));
   };
 
   const removeItem = async (cartItemIdOrProductId) => {
-    const token = localStorage.getItem("accessToken");
-    if (token && apiCart) {
-      try {
-        const item = apiCart.items?.find(
-          (i) => i.id === cartItemIdOrProductId || i.productId === cartItemIdOrProductId
-        );
-        const itemId = item ? item.id : cartItemIdOrProductId;
-        const res = await fetch(`${API_BASE_URL}/api/cart/items/${itemId}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await res.json();
-        if (res.ok && data.data) {
-          setApiCart(data.data);
-          return;
-        }
-      } catch (err) {
-        console.error("Lỗi khi xóa món khỏi giỏ hàng qua API:", err);
+    if (hasToken()) {
+      const item = apiCart?.items?.find(
+        (i) => i.id === cartItemIdOrProductId || i.productId === cartItemIdOrProductId
+      );
+      const itemId = item ? item.id : cartItemIdOrProductId;
+      const res = await fetch(`${API_BASE_URL}/api/cart/items/${itemId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Xóa sản phẩm khỏi giỏ hàng thất bại");
       }
+      setApiCart(data.data);
+      return;
     }
-
     persist(items.filter((i) => i.productId !== cartItemIdOrProductId));
   };
 
   const clearCart = async () => {
-    const token = localStorage.getItem("accessToken");
-    if (token && apiCart) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/cart`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await res.json();
-        if (res.ok && data.data) {
-          setApiCart(data.data);
-          clearSelection();
-          return;
-        }
-      } catch (err) {
-        console.error("Lỗi khi làm rỗng giỏ hàng qua API:", err);
+    if (hasToken()) {
+      const res = await fetch(`${API_BASE_URL}/api/cart`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Xóa giỏ hàng thất bại");
       }
+      setApiCart(data.data);
+      clearSelection();
+      return;
     }
     setApiCart(null);
     clearSelection();
     persist([]);
   };
 
-  // Nếu đã đăng nhập và có dữ liệu API, ưu tiên dùng dữ liệu API từ Backend
   const cartItems = useMemo(() => {
     if (apiCart && apiCart.items) {
       return apiCart.items.map((item) => ({
@@ -208,10 +180,12 @@ export function CartProvider({ children }) {
         price: item.price,
         quantity: item.quantity,
         subtotal: item.subtotal,
+        stockQuantity: item.stockQuantity,
         product: {
           id: item.productId,
           name: item.productName,
           price: item.price,
+          stock: item.stockQuantity,
           images: [item.productImageUrl],
         },
       }));
@@ -267,10 +241,7 @@ export function CartProvider({ children }) {
     if (!token) throw new Error("Vui lòng đăng nhập để thực hiện đặt hàng");
     const res = await fetch(`${API_BASE_URL}/api/orders/checkout`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(orderPayload),
     });
     const data = await res.json();
@@ -286,10 +257,7 @@ export function CartProvider({ children }) {
     if (!token) throw new Error("Vui lòng đăng nhập để thực hiện mua ngay");
     const res = await fetch(`${API_BASE_URL}/api/orders/buy-now`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(buyNowPayload),
     });
     const data = await res.json();

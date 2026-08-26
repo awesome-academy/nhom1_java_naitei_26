@@ -65,15 +65,23 @@ const ProductDetail = () => {
     setQuantity((q) => Math.min(product.stock, Math.max(1, q + delta)));
   };
 
-  const handleAddToCart = () => {
-    addItem(product.id, quantity);
-    Swal.fire({
-      icon: "success",
-      title: "Đã thêm vào giỏ hàng",
-      text: `${product.name} × ${quantity}`,
-      timer: 1800,
-      showConfirmButton: false,
-    });
+  const handleAddToCart = async () => {
+    try {
+      await addItem(product.id, quantity);
+      Swal.fire({
+        icon: "success",
+        title: "Đã thêm vào giỏ hàng",
+        text: `${product.name} × ${quantity}`,
+        timer: 1800,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Lỗi",
+        text: err.message || "Không thể thêm vào giỏ hàng",
+      });
+    }
   };
 
   const handleBuyNow = () => {
