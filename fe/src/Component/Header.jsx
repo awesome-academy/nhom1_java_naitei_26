@@ -13,6 +13,12 @@ const Header = () => {
 
   const [keyword, setKeyword] = useState("");
 
+  const [avatarError, setAvatarError] = useState(false);
+
+  React.useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatarUrl]);
+
   const handleSearch = (e) => {
     e.preventDefault();
     const q = keyword.trim();
@@ -217,15 +223,13 @@ const Header = () => {
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  {isAuthenticated && user?.avatarUrl ? (
+                  {isAuthenticated && user?.avatarUrl && !avatarError ? (
                     <img
                       src={user.avatarUrl}
                       alt="Avatar"
                       className="rounded-circle object-fit-cover shadow-sm me-1"
                       style={{ width: 24, height: 24 }}
-                      onError={(e) => {
-                        e.target.style.display = "none";
-                      }}
+                      onError={() => setAvatarError(true)}
                     />
                   ) : (
                     <i className="fas fa-user-circle me-1" />

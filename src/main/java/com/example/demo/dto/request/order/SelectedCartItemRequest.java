@@ -17,5 +17,5 @@ public class SelectedCartItemRequest {
     private Long cartItemId;
 
     @Min(value = 1, message = "Quantity must be at least 1")
-    private Integer quantity; // Optional custom quantity at checkout time
+    private Integer quantity; 
 }

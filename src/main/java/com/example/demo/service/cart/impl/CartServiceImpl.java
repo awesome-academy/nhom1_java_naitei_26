@@ -80,7 +80,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public Cart getOrCreateCartByUserId(Long userId) {            // lấy giỏ hàng của người dùng nếu không có thì tạo mới
+    public Cart getOrCreateCartByUserId(Long userId) {            
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
@@ -90,13 +90,13 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public List<CartItem> getCartItemsByUserId(Long userId) {     // lấy danh sách sản phẩm trong giỏ hàng của người dùng
+    public List<CartItem> getCartItemsByUserId(Long userId) {     
         Cart cart = getOrCreateCartByUserId(userId);
         return cartItemRepository.findByCartId(cart.getId());
     }
 
     @Override
-    public CartItem addToCart(Long userId, Long productId, Integer quantity) {           // thêm sản phẩm vào giỏ hàng của người dùng
+    public CartItem addToCart(Long userId, Long productId, Integer quantity) {           
         if (quantity == null || quantity <= 0) {
             throw new IllegalArgumentException("Số lượng thêm vào giỏ phải lớn hơn 0");
         }
@@ -142,7 +142,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartItem updateCartItemQuantity(Long userId, Long cartItemId, Integer quantity) {   // cập nhật số lượng sản phẩm trong giỏ hàng của người dùng
+    public CartItem updateCartItemQuantity(Long userId, Long cartItemId, Integer quantity) {   
         CartItem cartItem = cartItemRepository.findByIdAndCartUserId(cartItemId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("CartItem không tồn tại hoặc không thuộc về người dùng có id: " + userId));
 
@@ -178,7 +178,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public void removeCartItem(Long userId, Long cartItemId) {          // xóa sản phẩm trong giỏ hàng của người dùng
+    public void removeCartItem(Long userId, Long cartItemId) {          
         CartItem cartItem = cartItemRepository.findByIdAndCartUserId(cartItemId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("CartItem không tồn tại hoặc không thuộc về người dùng có id: " + userId));
 
@@ -190,7 +190,7 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public void clearCart(Long userId) {           // xóa toàn bộ sản phẩm trong giỏ hàng của người dùng
+    public void clearCart(Long userId) {           
         Cart cart = getOrCreateCartByUserId(userId);
         cartItemRepository.deleteByCartId(cart.getId());
     }
@@ -229,7 +229,7 @@ public class CartServiceImpl implements CartService {
         }
     }
 
-    private Cart createNewCartForUser(User user) {              // tạo giỏ hàng mới cho người dùng
+    private Cart createNewCartForUser(User user) {             
         Cart newCart = new Cart();
         newCart.setUser(user);
         newCart.setCreatedAt(OffsetDateTime.now());

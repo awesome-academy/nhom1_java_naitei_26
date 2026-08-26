@@ -54,7 +54,10 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.getFullName().trim());
         user.setPhone(request.getPhone() != null && !request.getPhone().isBlank() ? request.getPhone().trim() : null);
         user.setAddress(request.getAddress() != null && !request.getAddress().isBlank() ? request.getAddress().trim() : null);
-        user.setAvatarUrl(request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank() ? request.getAvatarUrl().trim() : null);
+        if (request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank()) {
+            user.setAvatarUrl(request.getAvatarUrl().trim());
+        }
+        user.setUpdatedAt(java.time.OffsetDateTime.now());
 
         User savedUser = userRepository.save(user);
         log.info("Cập nhật profile thành công cho userId: {}", userId);
