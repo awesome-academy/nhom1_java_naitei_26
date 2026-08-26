@@ -2,7 +2,9 @@ package com.example.demo.controller;
 
 import com.example.demo.dto.request.SuggestionStatusUpdateRequest;
 import com.example.demo.dto.response.SuggestionAdminResponse;
+import com.example.demo.dto.response.SuggestionStatsResponse;
 import com.example.demo.dto.response.common.ApiResponse;
+import com.example.demo.enums.product.ProductType;
 import com.example.demo.enums.product.SuggestionStatus;
 import com.example.demo.service.SuggestionService;
 import jakarta.validation.Valid;
@@ -32,21 +34,36 @@ public class AdminSuggestionController {
     private final SuggestionService suggestionService;
 
     /**
-     * API xem danh sách đề xuất sản phẩm từ người dùng (Admin), có lọc theo trạng thái và phân trang.
+     * API xem danh sách đề xuất sản phẩm từ người dùng (Admin), có lọc và phân trang.
      *
-     * @param status Trạng thái cần lọc (PENDING/APPROVED/REJECTED), bỏ trống để lấy tất cả
-     * @param page   Số trang, mặc định 0
-     * @param size   Số bản ghi mỗi trang, mặc định 10
+     * @param status  Trạng thái cần lọc (PENDING/APPROVED/REJECTED), bỏ trống để lấy tất cả
+     * @param type    Phân loại cần lọc (FOOD/DRINK), bỏ trống để lấy tất cả
+     * @param keyword Từ khoá tìm theo tên món / người gửi / mô tả, bỏ trống để không tìm
+     * @param page    Số trang, mặc định 0
+     * @param size    Số bản ghi mỗi trang, mặc định 10
      * @return ApiResponse bọc Page chứa danh sách đề xuất
      */
     @GetMapping
     public ResponseEntity<ApiResponse<Page<SuggestionAdminResponse>>> getSuggestions(
             @RequestParam(required = false) SuggestionStatus status,
+            @RequestParam(required = false) ProductType type,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<SuggestionAdminResponse> response = suggestionService.getSuggestions(status, pageable);
+        Page<SuggestionAdminResponse> response = suggestionService.getSuggestions(status, type, keyword, pageable);
         return ResponseEntity.ok(ApiResponse.ok("Lấy danh sách đề xuất thành công", response));
+    }
+
+    /**
+     * API đếm số đề xuất theo trạng thái (Admin), dùng cho thẻ thống kê và badge trên menu.
+     *
+     * @return ApiResponse bọc số liệu tổng / chờ duyệt / đã duyệt / từ chối
+     */
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<SuggestionStatsResponse>> getSuggestionStats() {
+        SuggestionStatsResponse response = suggestionService.getSuggestionStats();
+        return ResponseEntity.ok(ApiResponse.ok("Lấy thống kê đề xuất thành công", response));
     }
 
     /**
