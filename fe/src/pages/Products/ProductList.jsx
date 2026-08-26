@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { MagnifyingGlass } from "react-loader-spinner";
 import "@fortawesome/fontawesome-free/css/all.min.css";
@@ -14,6 +14,7 @@ import {
 } from "../../data/products";
 import { ALPHABET, getInitialLetter, formatPrice } from "../../utils/format";
 import { normalize } from "../../data/localStore";
+import "./ProductList.css";
 
 const SORT_OPTIONS = [
   { value: "featured", label: "Nổi bật" },
@@ -59,8 +60,21 @@ const ProductList = () => {
 
 // Kiểu hiển thị chỉ là tuỳ chọn giao diện nên vẫn giữ ở state.
   const [layout, setLayout] = useState("grid");
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortDropdownRef = useRef(null);
 
   const brandOptions = useMemo(() => getBrands(), []);
+
+  // Đóng sort dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target)) {
+        setSortOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 600);
@@ -273,23 +287,24 @@ const ProductList = () => {
           <div className="row">
             {/* ---------------- Sidebar bộ lọc ---------------- */}
             <aside className="col-lg-3 col-md-4 mb-6">
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h5 className="mb-0">
-                  Bộ lọc{" "}
+              <div className="fresh-filter-sidebar">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h5 className="mb-0 fw-bold fs-6">
+                    Bộ lọc{" "}
+                    {activeFilterCount > 0 && (
+                      <span className="badge bg-success ms-1">{activeFilterCount}</span>
+                    )}
+                  </h5>
                   {activeFilterCount > 0 && (
-                    <span className="badge bg-primary">{activeFilterCount}</span>
+                    <button
+                      type="button"
+                      className="btn btn-link btn-sm p-0 text-decoration-none text-danger small"
+                      onClick={resetFilters}
+                    >
+                      Xoá tất cả
+                    </button>
                   )}
-                </h5>
-                {activeFilterCount > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-link btn-sm p-0 text-decoration-none"
-                    onClick={resetFilters}
-                  >
-                    Xoá tất cả
-                  </button>
-                )}
-              </div>
+                </div>
 
               {/* Tìm kiếm */}
               <div className="mb-5">
@@ -456,47 +471,78 @@ const ProductList = () => {
                   ))}
                 </div>
               </div>
-            </aside>
+            </div>
+          </aside>
 
             {/* ---------------- Danh sách sản phẩm ---------------- */}
             <div className="col-lg-9 col-md-8">
-              <div className="d-md-flex justify-content-between align-items-center mb-5">
-                <div className="mb-2 mb-md-0">
-                  <span className="text-muted">
-                    Hiển thị <strong>{paged.length}</strong> / {filtered.length} sản phẩm
-                  </span>
-                </div>
+              {/* Thanh công cụ lọc & sắp xếp hiện đại */}
+              <div className="fresh-product-toolbar d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <div className="d-flex align-items-center gap-2">
-                  <select
-                    className="form-select form-select-sm"
-                    style={{ width: "auto" }}
-                    value={sort}
-                    onChange={(e) => setSort(e.target.value)}
-                  >
-                    {SORT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="btn-group">
+                  <span className="text-muted small">
+                    Hiển thị <strong>{paged.length}</strong> / <strong>{filtered.length}</strong> sản phẩm
+                  </span>
+                  {activeFilterCount > 0 && (
+                    <span className="fresh-pill-badge">
+                      Đang lọc ({activeFilterCount})
+                    </span>
+                  )}
+                </div>
+
+                <div className="d-flex align-items-center gap-3">
+                  {/* Custom Sắp xếp Dropdown */}
+                  <div className="position-relative" ref={sortDropdownRef}>
                     <button
                       type="button"
-                      className={`btn btn-sm ${
-                        layout === "grid" ? "btn-primary" : "btn-outline-secondary"
-                      }`}
-                      onClick={() => setLayout("grid")}
-                      title="Dạng lưới"
+                      className={`fresh-sort-trigger ${sortOpen ? "active" : ""}`}
+                      onClick={() => setSortOpen((prev) => !prev)}
+                      aria-expanded={sortOpen}
                     >
-                      <i className="fas fa-th" />
+                      <span className="text-muted small">Sắp xếp:</span>
+                      <strong className="text-dark">
+                        {SORT_OPTIONS.find((o) => o.value === sort)?.label || "Nổi bật"}
+                      </strong>
+                      <i className={`fas fa-chevron-down text-muted small ms-1 transition-transform ${sortOpen ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {sortOpen && (
+                      <div className="fresh-sort-menu">
+                        {SORT_OPTIONS.map((opt) => {
+                          const isSelected = (sort || "featured") === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              className={`fresh-sort-item ${isSelected ? "selected" : ""}`}
+                              onClick={() => {
+                                setSort(opt.value);
+                                setSortOpen(false);
+                              }}
+                            >
+                              <span>{opt.label}</span>
+                              {isSelected && <i className="fas fa-check text-success small" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Chế độ hiển thị Lưới / Danh sách */}
+                  <div className="fresh-view-toggle">
+                    <button
+                      type="button"
+                      className={`fresh-view-btn ${layout === "grid" ? "active" : ""}`}
+                      onClick={() => setLayout("grid")}
+                      title="Hiển thị dạng lưới"
+                    >
+                      <i className="fas fa-th-large" />
                     </button>
                     <button
                       type="button"
-                      className={`btn btn-sm ${
-                        layout === "list" ? "btn-primary" : "btn-outline-secondary"
-                      }`}
+                      className={`fresh-view-btn ${layout === "list" ? "active" : ""}`}
                       onClick={() => setLayout("list")}
-                      title="Dạng danh sách"
+                      title="Hiển thị dạng danh sách"
                     >
                       <i className="fas fa-list" />
                     </button>

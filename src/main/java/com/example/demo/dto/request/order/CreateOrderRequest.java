@@ -25,13 +25,8 @@ public class CreateOrderRequest {
 
     private String note;
 
-    /**
-     * Danh sách ID của các món hàng trong giỏ hàng (CartItem ID) được tích chọn để đặt.
-     */
+    
     private List<Long> cartItemIds;
 
-    /**
-     * Danh sách các món hàng tích chọn kèm số lượng cập nhật khi checkout.
-     */
     private List<SelectedCartItemRequest> cartItems;
 }

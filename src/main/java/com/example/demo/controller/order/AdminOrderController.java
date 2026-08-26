@@ -22,30 +22,18 @@ public class AdminOrderController {
 
     private final OrderService orderService;
 
-    /**
-     * API Admin lấy danh sách tất cả đơn hàng trong hệ thống.
-     * GET /api/admin/orders
-     */
     @GetMapping
     public ApiResponse<List<OrderResponse>> getAllOrders() {
         List<OrderResponse> response = orderService.getAllOrders();
         return ApiResponse.ok("Lấy toàn bộ đơn hàng hệ thống thành công", response);
     }
 
-    /**
-     * API Admin xem chi tiết một đơn hàng theo ID.
-     * GET /api/admin/orders/{id}
-     */
     @GetMapping("/{id}")
     public ApiResponse<OrderResponse> getOrderById(@PathVariable Long id) {
         OrderResponse response = orderService.getOrderById(id);
         return ApiResponse.ok("Lấy chi tiết đơn hàng thành công", response);
     }
 
-    /**
-     * API Admin cập nhật trạng thái đơn hàng.
-     * PUT /api/admin/orders/{id}/status?status=CONFIRMED
-     */
     @PutMapping("/{id}/status")
     public ApiResponse<OrderResponse> updateOrderStatus(
             @PathVariable Long id,

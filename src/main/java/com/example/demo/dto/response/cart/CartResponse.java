@@ -16,8 +16,8 @@ import java.util.List;
 @AllArgsConstructor
 public class CartResponse {
 
-    private Long cartId;               // ID của Giỏ hàng
-    private Long userId;               // ID của Người dùng sở hữu
-    private List<CartItemResponse> items; // Danh sách các món ăn trong giỏ
-    private BigDecimal totalAmount;    // Tổng tiền của toàn bộ giỏ hàng
+    private Long cartId;               
+    private Long userId;               
+    private List<CartItemResponse> items; 
+    private BigDecimal totalAmount;    
 }

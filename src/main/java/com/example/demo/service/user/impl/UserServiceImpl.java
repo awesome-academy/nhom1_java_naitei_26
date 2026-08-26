@@ -1,7 +1,6 @@
 package com.example.demo.service.user.impl;
 
 import com.example.demo.dto.request.user.UpdateUserProfileRequest;
-import com.example.demo.dto.request.user.UpdateUserRoleRequest;
 import com.example.demo.dto.request.user.UpdateUserStatusRequest;
 import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.dto.response.user.UserProfileResponse;
@@ -55,7 +54,10 @@ public class UserServiceImpl implements UserService {
         user.setFullName(request.getFullName().trim());
         user.setPhone(request.getPhone() != null && !request.getPhone().isBlank() ? request.getPhone().trim() : null);
         user.setAddress(request.getAddress() != null && !request.getAddress().isBlank() ? request.getAddress().trim() : null);
-        user.setAvatarUrl(request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank() ? request.getAvatarUrl().trim() : null);
+        if (request.getAvatarUrl() != null && !request.getAvatarUrl().isBlank()) {
+            user.setAvatarUrl(request.getAvatarUrl().trim());
+        }
+        user.setUpdatedAt(java.time.OffsetDateTime.now());
 
         User savedUser = userRepository.save(user);
         log.info("Cập nhật profile thành công cho userId: {}", userId);
@@ -65,8 +67,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserAdminResponse> getAllUsers(String keyword, UserRole role, UserStatus status, Pageable pageable) {
-        log.info("Admin lấy danh sách users: keyword={}, role={}, status={}, page={}, size={}", keyword, role, status, pageable.getPageNumber(), pageable.getPageSize());
-        Page<User> usersPage = userRepository.findUsersWithFilters(keyword, role, status, pageable);
+        String trimmedKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        log.info("Admin lấy danh sách users: keyword={}, role={}, status={}, page={}, size={}", trimmedKeyword, role, status, pageable.getPageNumber(), pageable.getPageSize());
+        Page<User> usersPage = userRepository.findUsersWithFilters(trimmedKeyword, role, status, pageable);
         return usersPage.map(UserAdminResponse::fromEntity);
     }
 
@@ -86,8 +89,13 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + userId));
 
-        if (userId.equals(currentAdminId) && request.getStatus() == UserStatus.BLOCKED) {
-            throw new IllegalArgumentException("Admin không thể tự khóa tài khoản của chính mình");
+        if (request.getStatus() == UserStatus.BLOCKED) {
+            if (userId.equals(currentAdminId)) {
+                throw new IllegalArgumentException("Admin không thể tự khóa tài khoản của chính mình");
+            }
+            if (user.getRole() == UserRole.ADMIN) {
+                throw new IllegalArgumentException("Không thể khóa tài khoản có vai trò Quản trị viên (ADMIN)");
+            }
         }
 
         user.setStatus(request.getStatus());
@@ -97,23 +105,6 @@ public class UserServiceImpl implements UserService {
             refreshTokenRepository.deleteByUser(savedUser);
             log.info("Đã thu hồi toàn bộ refreshToken của user ID {}", userId);
         }
-
-        return UserAdminResponse.fromEntity(savedUser);
-    }
-
-    @Override
-    @Transactional
-    public UserAdminResponse updateUserRole(Long userId, UpdateUserRoleRequest request, Long currentAdminId) {
-        log.info("Admin ID {} cập nhật vai trò user ID {} thành {}", currentAdminId, userId, request.getRole());
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với ID: " + userId));
-
-        if (userId.equals(currentAdminId) && request.getRole() != UserRole.ADMIN) {
-            throw new IllegalArgumentException("Admin không thể tự thay đổi vai trò của chính mình");
-        }
-
-        user.setRole(request.getRole());
-        User savedUser = userRepository.save(user);
 
         return UserAdminResponse.fromEntity(savedUser);
     }

@@ -17,6 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.demo.entity.product.ProductImage;
+import com.example.demo.repository.product.ProductImageRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +35,10 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final CartItemRepository cartItemRepository;
     private final OrderItemRepository orderItemRepository;
+    private final ProductImageRepository productImageRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Override
     public ProductResponse createProduct(ProductRequest request) {
@@ -65,6 +73,10 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdatedAt(now);
 
         Product saved = productRepository.save(product);
+
+        // Save images
+        saveProductImages(saved, request.getImages(), now);
+
         return mapToResponse(saved);
     }
 
@@ -101,6 +113,17 @@ public class ProductServiceImpl implements ProductService {
         product.setUpdatedAt(OffsetDateTime.now());
 
         Product saved = productRepository.save(product);
+
+        // Replace images: clear old ones and add new ones to the SAME collection
+        if (request.getImages() != null) {
+            List<ProductImage> existing = saved.getImages();
+            if (existing != null) {
+                existing.clear();
+            }
+            entityManager.flush();
+            addProductImages(saved, request.getImages(), OffsetDateTime.now());
+        }
+
         return mapToResponse(saved);
     }
 
@@ -133,21 +156,51 @@ public class ProductServiceImpl implements ProductService {
         productRepository.delete(product);
     }
 
+    private void saveProductImages(Product product, List<String> imageUrls, OffsetDateTime now) {
+        addProductImages(product, imageUrls, now);
+    }
+
+    private void addProductImages(Product product, List<String> imageUrls, OffsetDateTime now) {
+        if (imageUrls == null || imageUrls.isEmpty()) return;
+        List<ProductImage> collection = product.getImages();
+        if (collection == null) {
+            collection = new ArrayList<>();
+            product.setImages(collection);
+        }
+        int startOrder = collection.size();
+        for (int i = 0; i < imageUrls.size(); i++) {
+            String imageUrl = imageUrls.get(i);
+            if (imageUrl == null || imageUrl.isBlank()) continue;
+            ProductImage img = new ProductImage();
+            img.setProduct(product);
+            img.setImageUrl(imageUrl.trim());
+            img.setIsPrimary(collection.isEmpty() && i == 0);
+            img.setDisplayOrder(startOrder + i);
+            img.setCreatedAt(now);
+            img.setUpdatedAt(now);
+            collection.add(img);
+        }
+    }
+
     private ProductResponse mapToResponse(Product product) {
         List<String> imageUrls = product.getImages() != null ? product.getImages().stream()
                 .sorted((a, b) -> {
-                    if (a.getIsPrimary() && !b.getIsPrimary()) return -1;
-                    if (!a.getIsPrimary() && b.getIsPrimary()) return 1;
-                    return a.getDisplayOrder().compareTo(b.getDisplayOrder());
+                    boolean aPrimary = Boolean.TRUE.equals(a.getIsPrimary());
+                    boolean bPrimary = Boolean.TRUE.equals(b.getIsPrimary());
+                    if (aPrimary && !bPrimary) return -1;
+                    if (!aPrimary && bPrimary) return 1;
+                    int aOrder = a.getDisplayOrder() != null ? a.getDisplayOrder() : 0;
+                    int bOrder = b.getDisplayOrder() != null ? b.getDisplayOrder() : 0;
+                    return Integer.compare(aOrder, bOrder);
                 })
                 .map(ProductImage::getImageUrl)
                 .collect(Collectors.toList()) : List.of();
 
         return ProductResponse.builder()
                 .id(product.getId())
-                .categoryId(product.getCategory().getId())
-                .categoryName(product.getCategory().getName())
-                .categorySlug(product.getCategory().getSlug())
+                .categoryId(product.getCategory() != null ? product.getCategory().getId() : null)
+                .categoryName(product.getCategory() != null ? product.getCategory().getName() : null)
+                .categorySlug(product.getCategory() != null ? product.getCategory().getSlug() : null)
                 .name(product.getName())
                 .slug(product.getSlug())
                 .brand(product.getBrand())

@@ -7,11 +7,14 @@ import EmptyState from "../../../components/admin/EmptyState";
 import StatCard from "../../../components/admin/StatCard";
 import { formatPrice } from "../../../utils/format";
 import {
+  fetchAdminOrdersApi,
+  updateAdminOrderStatusApi,
+  getOrders,
   filterOrders,
-  updateOrderStatus,
   getNextStatuses,
   getOrderStats,
   getStatusBadge,
+  getStatusLabel,
   ORDER_STATUSES,
   ORDER_SORTS,
   PAYMENT_METHODS,
@@ -29,19 +32,35 @@ const EMPTY_FILTERS = {
 };
 
 const OrderList = () => {
+  const [allOrders, setAllOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
-  const [version, setVersion] = useState(0);
+
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      const data = await fetchAdminOrdersApi();
+      setAllOrders(data);
+    } catch (err) {
+      console.warn("Không kết nối được API backend, sử dụng mock data fallback:", err);
+      setAllOrders(getOrders());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOrders();
+  }, []);
 
   const orders = useMemo(
-    () => filterOrders(filters),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filters, version]
+    () => filterOrders(allOrders, filters),
+    [allOrders, filters]
   );
   const stats = useMemo(
-    () => getOrderStats(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version]
+    () => getOrderStats(allOrders),
+    [allOrders]
   );
 
   const totalPages = Math.max(1, Math.ceil(orders.length / PAGE_SIZE));
@@ -57,55 +76,50 @@ const OrderList = () => {
   const hasActiveFilter =
     filters.keyword || filters.status || filters.payment || filters.fromDate || filters.toDate;
 
-  // Doanh thu của đúng tập đơn đang lọc, để tiện đối chiếu khi xem theo khoảng ngày.
   const filteredRevenue = orders
-    .filter((o) => o.status !== "Đã huỷ")
+    .filter((o) => o.status !== "CANCELLED" && o.status !== "Đã huỷ")
     .reduce((sum, o) => sum + o.total, 0);
 
-  const handleChangeStatus = async (order, nextStatus) => {
-    const isCancel = nextStatus === "Đã huỷ";
-    const result = await Swal.fire({
-      icon: isCancel ? "warning" : "question",
-      title: isCancel ? "Huỷ đơn hàng?" : `Chuyển sang "${nextStatus}"?`,
-      html: `Đơn <b>${order.id}</b> của ${order.customer.fullName}.${
-        isCancel ? "<br/>Đơn đã huỷ sẽ không tính vào doanh thu." : ""
-      }`,
-      showCancelButton: true,
-      confirmButtonText: isCancel ? "Huỷ đơn" : "Xác nhận",
-      cancelButtonText: "Quay lại",
-      confirmButtonColor: isCancel ? "#dc3545" : "#0aad0a",
-    });
-    if (!result.isConfirmed) return;
 
-    updateOrderStatus(order.id, nextStatus);
-    setVersion((v) => v + 1);
-    Swal.fire({
-      icon: "success",
-      title: "Đã cập nhật trạng thái",
-      timer: 1600,
-      showConfirmButton: false,
-    });
-  };
 
-  // Dropdown của Bootstrap bị cắt bên trong .table-responsive,
-  // nên dùng hộp thoại chọn trạng thái thay cho menu xổ xuống.
   const handlePickStatus = async (order) => {
     const nextStatuses = getNextStatuses(order.status);
     if (nextStatuses.length === 0) return;
 
+    const inputOptions = {};
+    nextStatuses.forEach((s) => {
+      inputOptions[s] = getStatusLabel(s);
+    });
+
     const { value: picked } = await Swal.fire({
-      title: `Cập nhật đơn ${order.id}`,
-      text: `Trạng thái hiện tại: ${order.status}`,
+      title: `Cập nhật đơn #${order.id}`,
+      text: `Trạng thái hiện tại: ${getStatusLabel(order.status)}`,
       input: "select",
-      inputOptions: Object.fromEntries(nextStatuses.map((s) => [s, s])),
+      inputOptions,
       inputValue: nextStatuses[0],
       showCancelButton: true,
-      confirmButtonText: "Tiếp tục",
+      confirmButtonText: "Xác nhận",
       cancelButtonText: "Huỷ",
+      confirmButtonColor: "#0aad0a",
     });
     if (!picked) return;
 
-    await handleChangeStatus(order, picked);
+    try {
+      const updated = await updateAdminOrderStatusApi(order.id, picked);
+      setAllOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      Swal.fire({
+        icon: "success",
+        title: "Đã cập nhật trạng thái",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Thất bại",
+        text: err.message || "Cập nhật trạng thái đơn hàng không thành công.",
+      });
+    }
   };
 
   return (
@@ -172,7 +186,7 @@ const OrderList = () => {
               <option value="">Trạng thái</option>
               {ORDER_STATUSES.map((status) => (
                 <option value={status.value} key={status.value}>
-                  {status.value}
+                  {status.label}
                 </option>
               ))}
             </select>
@@ -255,7 +269,12 @@ const OrderList = () => {
 
       {/* ---- Bảng ---- */}
       <div className="admin-card">
-        {pageItems.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-5">
+            <i className="fas fa-spinner fa-spin fa-2x text-primary mb-2" />
+            <p className="text-muted small">Đang tải danh sách đơn hàng...</p>
+          </div>
+        ) : pageItems.length === 0 ? (
           <EmptyState
             icon="fa-receipt"
             title="Không có đơn hàng nào"
@@ -277,7 +296,7 @@ const OrderList = () => {
               </thead>
               <tbody>
                 {pageItems.map((order) => {
-                  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+                  const itemCount = (order.items || []).reduce((sum, item) => sum + item.quantity, 0);
                   const nextStatuses = getNextStatuses(order.status);
                   return (
                     <tr key={order.id}>
@@ -286,7 +305,7 @@ const OrderList = () => {
                           to={`/admin/don-hang/${order.id}`}
                           className="fw-semibold text-decoration-none"
                         >
-                          {order.id}
+                          #{order.id}
                         </Link>
                         <div className="small text-muted">
                           {new Date(order.createdAt).toLocaleString("vi-VN", {
@@ -299,8 +318,8 @@ const OrderList = () => {
                         </div>
                       </td>
                       <td className="small">
-                        <div className="fw-semibold">{order.customer.fullName}</div>
-                        <div className="text-muted">{order.customer.phone}</div>
+                        <div className="fw-semibold">{order.customer?.fullName}</div>
+                        <div className="text-muted">{order.customer?.phone}</div>
                       </td>
                       <td className="text-end small">{itemCount}</td>
                       <td className="text-end fw-semibold">{formatPrice(order.total)}</td>
@@ -309,7 +328,7 @@ const OrderList = () => {
                       </td>
                       <td>
                         <span className={`badge ${getStatusBadge(order.status)}`}>
-                          {order.status}
+                          {getStatusLabel(order.status)}
                         </span>
                       </td>
                       <td className="text-end text-nowrap">
@@ -340,7 +359,7 @@ const OrderList = () => {
           </div>
         )}
 
-        {orders.length > 0 && (
+        {!loading && orders.length > 0 && (
           <div className="p-3 border-top">
             <Pagination
               page={page}

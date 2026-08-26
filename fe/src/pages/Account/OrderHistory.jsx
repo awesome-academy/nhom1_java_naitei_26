@@ -4,6 +4,7 @@ import ScrollToTop from "../ScrollToTop";
 import AccountSidebar from "../../components/AccountSidebar";
 import { useAuth } from "../../context/AuthContext";
 import { getOrdersByUser } from "../../data/orders";
+import { getAllProducts } from "../../data/products";
 import { formatPrice } from "../../utils/format";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
@@ -11,17 +12,19 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 const STATUS_BADGE = {
   PENDING: "bg-warning-subtle text-warning",
   CONFIRMED: "bg-info-subtle text-info",
-  PROCESSING: "bg-primary-subtle text-primary",
+  PREPARING: "bg-primary-subtle text-primary",
+  DELIVERING: "bg-primary-subtle text-primary",
+  SHIPPED: "bg-primary-subtle text-primary",
   SHIPPING: "bg-primary-subtle text-primary",
   COMPLETED: "bg-success-subtle text-success",
   CANCELLED: "bg-danger-subtle text-danger",
 };
 
 const STATUS_LABEL = {
-  PENDING: "Chờ xử lý",
+  PENDING: "Chờ xác nhận",
   CONFIRMED: "Đã xác nhận",
-  PROCESSING: "Đang đóng gói",
-  SHIPPING: "Đang giao hàng",
+  PREPARING: "Đang chuẩn bị",
+  DELIVERING: "Đang giao hàng",
   COMPLETED: "Hoàn thành",
   CANCELLED: "Đã hủy",
 };
@@ -56,7 +59,7 @@ const OrderHistory = () => {
         }
       }
 
-      // Fallback local data nếu chưa đăng nhập hoặc API trống
+     
       const localOrders = getOrdersByUser(user?.id);
       setOrders(localOrders);
       setLoading(false);
@@ -160,11 +163,21 @@ const OrderHistory = () => {
                             <div className="mt-3 pt-3 border-top">
                               <ul className="list-unstyled mb-4">
                                 {items.map((item, idx) => {
-                                  const pName = item.productName || item.name || "Sản phẩm";
+                                  const pId = item.productId || item.product?.id || item.id;
+                                  const allProds = getAllProducts();
+                                  const foundProd = allProds.find(
+                                    (p) => p.id === pId || String(p.id) === String(pId)
+                                  );
+                                  const pName = item.productName || item.name || foundProd?.name || "Sản phẩm";
                                   const pPrice = item.unitPrice || item.price || 0;
                                   const pQty = item.quantity || 1;
                                   const pSubtotal = item.subtotal || pPrice * pQty;
-                                  const pImg = item.productImageUrl || item.image || "https://via.placeholder.com/44";
+                                  const pImg =
+                                    item.productImageUrl ||
+                                    item.image ||
+                                    item.imageUrl ||
+                                    foundProd?.images?.[0] ||
+                                    "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=150";
 
                                   return (
                                     <li
@@ -172,14 +185,44 @@ const OrderHistory = () => {
                                       className="d-flex justify-content-between align-items-center mb-2"
                                     >
                                       <div className="d-flex align-items-center gap-2">
-                                        <img
-                                          src={pImg}
-                                          alt={pName}
-                                          style={{ width: 44, height: 44, objectFit: "cover" }}
-                                          className="rounded-2"
-                                        />
+                                        {pId ? (
+                                          <Link to={`/san-pham/${pId}`}>
+                                            <img
+                                              src={pImg}
+                                              alt={pName}
+                                              style={{ width: 44, height: 44, objectFit: "cover" }}
+                                              className="rounded-2"
+                                              onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.src =
+                                                  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=150";
+                                              }}
+                                            />
+                                          </Link>
+                                        ) : (
+                                          <img
+                                            src={pImg}
+                                            alt={pName}
+                                            style={{ width: 44, height: 44, objectFit: "cover" }}
+                                            className="rounded-2"
+                                            onError={(e) => {
+                                              e.target.onerror = null;
+                                              e.target.src =
+                                                "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=150";
+                                            }}
+                                          />
+                                        )}
                                         <div className="small">
-                                          <div className="fw-semibold">{pName}</div>
+                                          {pId ? (
+                                            <Link
+                                              to={`/san-pham/${pId}`}
+                                              className="fw-semibold text-decoration-none text-dark hover-primary"
+                                            >
+                                              {pName}
+                                            </Link>
+                                          ) : (
+                                            <div className="fw-semibold">{pName}</div>
+                                          )}
                                           <div className="text-muted">
                                             {formatPrice(pPrice)} × {pQty}
                                           </div>

@@ -90,6 +90,7 @@ function mapToApiBody(data) {
     expiry: data.expiry || null,
     storage: data.storage || null,
     status: data.active ? "ACTIVE" : "INACTIVE",
+    images: data.images || [],
   };
 }
 
