@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import PageHeader from "../../../components/admin/PageHeader";
 import Pagination from "../../../components/admin/Pagination";
@@ -6,7 +6,7 @@ import EmptyState from "../../../components/admin/EmptyState";
 import StatCard from "../../../components/admin/StatCard";
 import AdminModal from "../../../components/admin/AdminModal";
 import {
-  filterSuggestions,
+  fetchSuggestions,
   updateSuggestionStatus,
   getSuggestionStats,
   getStatusBadge,
@@ -20,6 +20,8 @@ const PAGE_SIZE = 10;
 
 const EMPTY_FILTERS = { keyword: "", status: "", type: "" };
 
+const EMPTY_STATS = { total: 0, pending: 0, approved: 0, rejected: 0 };
+
 function formatDateTime(value) {
   return new Date(value).toLocaleString("vi-VN", {
     day: "2-digit",
@@ -32,25 +34,80 @@ function formatDateTime(value) {
 
 const SuggestionList = () => {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  // Từ khoá dùng để gọi API, chỉ cập nhật sau khi người dùng ngừng gõ.
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [page, setPage] = useState(1);
   const [version, setVersion] = useState(0);
   const [detail, setDetail] = useState(null);
 
-  const suggestions = useMemo(
-    () => filterSuggestions(filters),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [filters, version]
-  );
-  const stats = useMemo(
-    () => getSuggestionStats(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version]
-  );
+  const [items, setItems] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [stats, setStats] = useState(EMPTY_STATS);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const totalPages = Math.max(1, Math.ceil(suggestions.length / PAGE_SIZE));
-  const pageItems = suggestions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Đợi 400ms sau lần gõ cuối rồi mới tìm, tránh bắn request mỗi ký tự.
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchKeyword(filters.keyword), 400);
+    return () => clearTimeout(timer);
+  }, [filters.keyword]);
 
-  useEffect(() => setPage(1), [filters]);
+  // Đổi điều kiện lọc thì quay lại trang đầu.
+  useEffect(() => setPage(1), [searchKeyword, filters.status, filters.type]);
+
+  // Tải danh sách theo trang và bộ lọc hiện tại.
+  useEffect(() => {
+    let ignore = false;
+    setLoading(true);
+    setError("");
+
+    fetchSuggestions({
+      page: page - 1, // backend đánh số trang từ 0, Pagination của FE đếm từ 1
+      size: PAGE_SIZE,
+      status: filters.status,
+      type: filters.type,
+      keyword: searchKeyword,
+    })
+      .then((data) => {
+        if (ignore) return;
+        setItems(data?.content || []);
+        setTotalItems(data?.totalElements || 0);
+        setTotalPages(Math.max(1, data?.totalPages || 1));
+      })
+      .catch((err) => {
+        if (ignore) return;
+        setItems([]);
+        setTotalItems(0);
+        setTotalPages(1);
+        setError(err.message || "Không tải được danh sách đề xuất.");
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [page, filters.status, filters.type, searchKeyword, version]);
+
+  // Số liệu thống kê tải riêng, hỏng thì chỉ ẩn số chứ không chặn bảng danh sách.
+  useEffect(() => {
+    let ignore = false;
+    getSuggestionStats()
+      .then((data) => {
+        if (!ignore) setStats(data || EMPTY_STATS);
+      })
+      .catch(() => {
+        if (!ignore) setStats(EMPTY_STATS);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [version]);
+
+  // Nếu bộ lọc thu hẹp làm số trang giảm, kéo người dùng về trang cuối còn dữ liệu.
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
@@ -80,15 +137,24 @@ const SuggestionList = () => {
     });
     if (!isConfirmed) return;
 
-    updateSuggestionStatus(suggestion.id, nextStatus, note || "");
-    setVersion((v) => v + 1);
-    setDetail(null);
-    Swal.fire({
-      icon: "success",
-      title: isApprove ? "Đã duyệt đề xuất" : "Đã từ chối đề xuất",
-      timer: 1600,
-      showConfirmButton: false,
-    });
+    try {
+      await updateSuggestionStatus(suggestion.id, nextStatus, note || "");
+      setVersion((v) => v + 1);
+      setDetail(null);
+      Swal.fire({
+        icon: "success",
+        title: isApprove ? "Đã duyệt đề xuất" : "Đã từ chối đề xuất",
+        timer: 1600,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Cập nhật thất bại",
+        text: err.message || "Không cập nhật được trạng thái đề xuất.",
+        confirmButtonText: "Đã hiểu",
+      });
+    }
   };
 
   return (
@@ -188,7 +254,20 @@ const SuggestionList = () => {
 
       {/* ---- Bảng ---- */}
       <div className="admin-card">
-        {pageItems.length === 0 ? (
+        {loading ? (
+          <div className="text-center text-muted py-5">
+            <div className="spinner-border text-primary mb-3" role="status">
+              <span className="visually-hidden">Đang tải...</span>
+            </div>
+            <div className="small">Đang tải danh sách đề xuất...</div>
+          </div>
+        ) : error ? (
+          <EmptyState
+            icon="fa-triangle-exclamation"
+            title="Không tải được dữ liệu"
+            description={error}
+          />
+        ) : items.length === 0 ? (
           <EmptyState
             icon="fa-lightbulb"
             title="Không có đề xuất nào"
@@ -208,7 +287,7 @@ const SuggestionList = () => {
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map((suggestion) => (
+                {items.map((suggestion) => (
                   <tr key={suggestion.id}>
                     <td>
                       <div className="fw-semibold">{suggestion.productName}</div>
@@ -274,12 +353,12 @@ const SuggestionList = () => {
           </div>
         )}
 
-        {suggestions.length > 0 && (
+        {!loading && !error && totalItems > 0 && (
           <div className="p-3 border-top">
             <Pagination
               page={page}
               totalPages={totalPages}
-              totalItems={suggestions.length}
+              totalItems={totalItems}
               pageSize={PAGE_SIZE}
               onChange={setPage}
             />
