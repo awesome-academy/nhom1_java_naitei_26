@@ -39,11 +39,45 @@ export function getStatusBadge(value) {
 
 export function getUserStats() {
   return {
-    total: 12,
+    total: 15,
     admins: 2,
     locked: 0,
     newThisMonth: 5,
   };
+}
+
+export function getOrderStatusBadge(status) {
+  switch (status) {
+    case "PENDING":
+      return "bg-warning-subtle text-warning border border-warning-subtle";
+    case "CONFIRMED":
+      return "bg-info-subtle text-info border border-info-subtle";
+    case "SHIPPING":
+      return "bg-primary-subtle text-primary border border-primary-subtle";
+    case "DELIVERED":
+      return "bg-success-subtle text-success border border-success-subtle";
+    case "CANCELLED":
+      return "bg-danger-subtle text-danger border border-danger-subtle";
+    default:
+      return "bg-secondary-subtle text-secondary";
+  }
+}
+
+export function getOrderStatusLabel(status) {
+  switch (status) {
+    case "PENDING":
+      return "Chờ xác nhận";
+    case "CONFIRMED":
+      return "Đã xác nhận";
+    case "SHIPPING":
+      return "Đang giao";
+    case "DELIVERED":
+      return "Đã giao";
+    case "CANCELLED":
+      return "Đã huỷ";
+    default:
+      return status;
+  }
 }
 
 export async function fetchAdminUsersApi({ keyword, role, status, page = 0, size = 10 }) {
@@ -83,6 +117,21 @@ export async function fetchAdminUserDetailApi(id) {
   return data.data;
 }
 
+export async function fetchAdminUserOrdersApi(id) {
+  const res = await fetch(`${API_BASE_URL}/api/admin/users/${id}/orders`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok || (data.status && data.status >= 400)) {
+    if (res.status === 401) {
+      throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+    }
+    throw new Error(data.message || "Không thể tải lịch sử đơn hàng của người dùng");
+  }
+  return data.data || [];
+}
+
 export async function updateUserStatusApi(id, newStatus) {
   const res = await fetch(`${API_BASE_URL}/api/admin/users/${id}/status`, {
     method: "PATCH",
@@ -95,22 +144,6 @@ export async function updateUserStatusApi(id, newStatus) {
       throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
     }
     throw new Error(data.message || "Không thể cập nhật trạng thái người dùng");
-  }
-  return data.data;
-}
-
-export async function updateUserRoleApi(id, newRole) {
-  const res = await fetch(`${API_BASE_URL}/api/admin/users/${id}/role`, {
-    method: "PATCH",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ role: newRole }),
-  });
-  const data = await res.json();
-  if (!res.ok || (data.status && data.status >= 400)) {
-    if (res.status === 401) {
-      throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
-    }
-    throw new Error(data.message || "Không thể cập nhật vai trò người dùng");
   }
   return data.data;
 }

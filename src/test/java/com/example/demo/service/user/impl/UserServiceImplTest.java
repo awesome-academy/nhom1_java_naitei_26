@@ -1,7 +1,6 @@
 package com.example.demo.service.user.impl;
 
 import com.example.demo.dto.request.user.UpdateUserProfileRequest;
-import com.example.demo.dto.request.user.UpdateUserRoleRequest;
 import com.example.demo.dto.request.user.UpdateUserStatusRequest;
 import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.dto.response.user.UserProfileResponse;
@@ -151,7 +150,7 @@ class UserServiceImplTest {
         when(userRepository.findUsersWithFilters(eq("hung"), eq(UserRole.USER), eq(UserStatus.ACTIVE), eq(pageable)))
                 .thenReturn(page);
 
-        Page<UserAdminResponse> result = userService.getAllUsers("hung", UserRole.USER, UserStatus.ACTIVE, pageable);
+        Page<UserAdminResponse> result = userService.getAllUsers("  hung  ", UserRole.USER, UserStatus.ACTIVE, pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -217,6 +216,23 @@ class UserServiceImplTest {
     }
 
     @Test
+    @DisplayName("Admin khóa tài khoản Admin khác ném IllegalArgumentException")
+    void updateUserStatus_BlockOtherAdmin_ThrowsException() {
+        mockUser.setRole(UserRole.ADMIN);
+        UpdateUserStatusRequest request = UpdateUserStatusRequest.builder()
+                .status(UserStatus.BLOCKED)
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> userService.updateUserStatus(1L, request, 999L));
+
+        assertEquals("Không thể khóa tài khoản có vai trò Quản trị viên (ADMIN)", ex.getMessage());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
     @DisplayName("Admin cập nhật trạng thái ném lỗi khi user không tồn tại")
     void updateUserStatus_UserNotFound() {
         UpdateUserStatusRequest request = UpdateUserStatusRequest.builder()
@@ -227,53 +243,6 @@ class UserServiceImplTest {
 
         assertThrows(ResourceNotFoundException.class,
                 () -> userService.updateUserStatus(99L, request, 1L));
-        verify(userRepository).findById(99L);
-    }
-
-    @Test
-    @DisplayName("Admin đổi vai trò của user thành công")
-    void updateUserRole_Success() {
-        UpdateUserRoleRequest request = UpdateUserRoleRequest.builder()
-                .role(UserRole.ADMIN)
-                .build();
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        UserAdminResponse response = userService.updateUserRole(1L, request, 999L);
-
-        assertNotNull(response);
-        assertEquals("ADMIN", response.getRole());
-        verify(userRepository).save(mockUser);
-    }
-
-    @Test
-    @DisplayName("Admin tự thay đổi vai trò của chính mình ném IllegalArgumentException")
-    void updateUserRole_SelfDemote_ThrowsException() {
-        UpdateUserRoleRequest request = UpdateUserRoleRequest.builder()
-                .role(UserRole.USER)
-                .build();
-
-        when(userRepository.findById(1L)).thenReturn(Optional.of(mockUser));
-
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.updateUserRole(1L, request, 1L));
-
-        assertEquals("Admin không thể tự thay đổi vai trò của chính mình", ex.getMessage());
-        verify(userRepository, never()).save(any(User.class));
-    }
-
-    @Test
-    @DisplayName("Admin cập nhật vai trò ném lỗi khi user không tồn tại")
-    void updateUserRole_UserNotFound() {
-        UpdateUserRoleRequest request = UpdateUserRoleRequest.builder()
-                .role(UserRole.ADMIN)
-                .build();
-
-        when(userRepository.findById(99L)).thenReturn(Optional.empty());
-
-        assertThrows(ResourceNotFoundException.class,
-                () -> userService.updateUserRole(99L, request, 1L));
         verify(userRepository).findById(99L);
     }
 }
