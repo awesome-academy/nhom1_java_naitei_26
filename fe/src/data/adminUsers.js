@@ -98,19 +98,3 @@ export async function updateUserStatusApi(id, newStatus) {
   }
   return data.data;
 }
-
-export async function updateUserRoleApi(id, newRole) {
-  const res = await fetch(`${API_BASE_URL}/api/admin/users/${id}/role`, {
-    method: "PATCH",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ role: newRole }),
-  });
-  const data = await res.json();
-  if (!res.ok || (data.status && data.status >= 400)) {
-    if (res.status === 401) {
-      throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
-    }
-    throw new Error(data.message || "Không thể cập nhật vai trò người dùng");
-  }
-  return data.data;
-}

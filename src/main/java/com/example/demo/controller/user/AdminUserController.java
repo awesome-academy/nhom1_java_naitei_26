@@ -1,9 +1,9 @@
 package com.example.demo.controller.user;
 
 import com.example.demo.config.security.CustomUserDetails;
-import com.example.demo.dto.request.user.UpdateUserRoleRequest;
 import com.example.demo.dto.request.user.UpdateUserStatusRequest;
 import com.example.demo.dto.response.common.ApiResponse;
+import com.example.demo.dto.response.common.PageResponse;
 import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.enums.auth.UserRole;
 import com.example.demo.enums.auth.UserStatus;
@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -37,14 +38,20 @@ public class AdminUserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Page<UserAdminResponse>>> getUsers(
+    public ResponseEntity<ApiResponse<PageResponse<UserAdminResponse>>> getUsers(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UserRole role,
             @RequestParam(required = false) UserStatus status,
             @PageableDefault(page = 0, size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        log.info("Admin truy vấn danh sách User: page={}, size={}, keyword={}, role={}, status={}", pageable.getPageNumber(), pageable.getPageSize(), keyword, role, status);
-        Page<UserAdminResponse> result = userService.getAllUsers(keyword, role, status, pageable);
-        return ResponseEntity.ok(ApiResponse.ok("Lấy danh sách người dùng thành công", result));
+        
+        String trimmedKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        int page = Math.max(0, pageable.getPageNumber());
+        int size = Math.min(100, Math.max(1, pageable.getPageSize())); // Giới hạn tối đa 100 phần tử / trang
+        Pageable safePageable = PageRequest.of(page, size, pageable.getSort());
+
+        log.info("Admin truy vấn danh sách User: page={}, size={}, keyword={}, role={}, status={}", page, size, trimmedKeyword, role, status);
+        Page<UserAdminResponse> result = userService.getAllUsers(trimmedKeyword, role, status, safePageable);
+        return ResponseEntity.ok(ApiResponse.ok("Lấy danh sách người dùng thành công", PageResponse.from(result)));
     }
 
     @GetMapping("/{id}")
@@ -64,16 +71,5 @@ public class AdminUserController {
         Long currentAdminId = userDetails != null && userDetails.getUser() != null ? userDetails.getUser().getId() : null;
         UserAdminResponse result = userService.updateUserStatus(id, request, currentAdminId);
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật trạng thái người dùng thành công", result));
-    }
-
-    @PatchMapping("/{id}/role")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<UserAdminResponse>> updateUserRole(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateUserRoleRequest request,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        Long currentAdminId = userDetails != null && userDetails.getUser() != null ? userDetails.getUser().getId() : null;
-        UserAdminResponse result = userService.updateUserRole(id, request, currentAdminId);
-        return ResponseEntity.ok(ApiResponse.ok("Cập nhật vai trò người dùng thành công", result));
     }
 }

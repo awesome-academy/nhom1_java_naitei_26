@@ -1,7 +1,6 @@
 package com.example.demo.controller.user;
 
 import com.example.demo.config.security.CustomUserDetails;
-import com.example.demo.dto.request.user.UpdateUserRoleRequest;
 import com.example.demo.dto.request.user.UpdateUserStatusRequest;
 import com.example.demo.dto.response.user.UserAdminResponse;
 import com.example.demo.entity.auth.User;
@@ -82,7 +81,7 @@ class AdminUserControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/admin/users - Admin lấy danh sách thành công (200 OK)")
+    @DisplayName("GET /api/admin/users - Admin lấy danh sách thành công có PageResponse (200 OK)")
     void getUsers_AsAdmin_Success() throws Exception {
         Page<UserAdminResponse> pageResponse = new PageImpl<>(Collections.singletonList(sampleUserResponse));
         Mockito.when(userService.getAllUsers(any(), any(), any(), any(Pageable.class))).thenReturn(pageResponse);
@@ -92,7 +91,8 @@ class AdminUserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.data.content[0].email").value("user@example.com"));
+                .andExpect(jsonPath("$.data.content[0].email").value("user@example.com"))
+                .andExpect(jsonPath("$.data.totalElements").value(1));
     }
 
     @Test
@@ -168,45 +168,6 @@ class AdminUserControllerTest {
                 .build();
 
         mockMvc.perform(patch("/api/admin/users/2/status")
-                        .with(user(regularUserDetails))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @DisplayName("PATCH /api/admin/users/{id}/role - Admin cập nhật vai trò thành công (200 OK)")
-    void updateUserRole_AsAdmin_Success() throws Exception {
-        UpdateUserRoleRequest request = UpdateUserRoleRequest.builder()
-                .role(UserRole.ADMIN)
-                .build();
-
-        UserAdminResponse promotedResponse = UserAdminResponse.builder()
-                .id(2L)
-                .email("user@example.com")
-                .role("ADMIN")
-                .build();
-
-        Mockito.when(userService.updateUserRole(eq(2L), any(UpdateUserRoleRequest.class), eq(1L)))
-                .thenReturn(promotedResponse);
-
-        mockMvc.perform(patch("/api/admin/users/2/role")
-                        .with(user(adminUserDetails))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(200))
-                .andExpect(jsonPath("$.data.role").value("ADMIN"));
-    }
-
-    @Test
-    @DisplayName("PATCH /api/admin/users/{id}/role - USER thường bị chặn (403 Forbidden)")
-    void updateUserRole_AsRegularUser_Forbidden() throws Exception {
-        UpdateUserRoleRequest request = UpdateUserRoleRequest.builder()
-                .role(UserRole.ADMIN)
-                .build();
-
-        mockMvc.perform(patch("/api/admin/users/2/role")
                         .with(user(regularUserDetails))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))

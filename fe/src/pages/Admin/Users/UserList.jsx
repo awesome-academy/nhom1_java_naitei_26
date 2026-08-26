@@ -7,8 +7,8 @@ import EmptyState from "../../../components/admin/EmptyState";
 import { useAuth } from "../../../context/AuthContext";
 import {
   fetchAdminUsersApi,
+  fetchAdminUserDetailApi,
   updateUserStatusApi,
-  updateUserRoleApi,
   getRoleLabel,
   getRoleBadge,
   getStatusLabel,
@@ -33,10 +33,9 @@ const UserList = () => {
     totalPages: 1,
   });
 
-  // Modal Chi tiết & Quản lý vai trò
+  // Modal Chi tiết người dùng
   const [detailUser, setDetailUser] = useState(null);
-  const [selectedRole, setSelectedRole] = useState("USER");
-  const [savingRole, setSavingRole] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -78,6 +77,15 @@ const UserList = () => {
       return;
     }
 
+    if (user.role === "ADMIN" && user.status === "ACTIVE") {
+      Swal.fire({
+        icon: "warning",
+        title: "Không thể thao tác",
+        text: "Không thể khóa tài khoản có vai trò Quản trị viên (ADMIN)!",
+      });
+      return;
+    }
+
     const locking = user.status === "ACTIVE";
     const nextStatus = locking ? "BLOCKED" : "ACTIVE";
 
@@ -112,42 +120,18 @@ const UserList = () => {
     }
   };
 
-  const openDetailModal = (user) => {
+  const openDetailModal = async (user) => {
     setDetailUser(user);
-    setSelectedRole(user.role);
-  };
-
-  const handleSaveRole = async () => {
-    if (!detailUser) return;
-    const isSelf = String(detailUser.id) === String(currentUser?.id);
-    if (isSelf && selectedRole !== "ADMIN") {
-      Swal.fire({
-        icon: "warning",
-        title: "Không thể thay đổi",
-        text: "Bạn không thể tự giáng cấp vai trò của chính mình!",
-      });
-      return;
-    }
-
-    setSavingRole(true);
+    setDetailLoading(true);
     try {
-      await updateUserRoleApi(detailUser.id, selectedRole);
-      setDetailUser(null);
-      Swal.fire({
-        icon: "success",
-        title: "Cập nhật vai trò thành công",
-        timer: 1500,
-        showConfirmButton: false,
-      });
-      loadUsers();
+      const fullDetail = await fetchAdminUserDetailApi(user.id);
+      if (fullDetail) {
+        setDetailUser(fullDetail);
+      }
     } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Cập nhật thất bại",
-        text: err.message,
-      });
+      console.warn("Dùng dữ liệu danh sách do không thể tải chi tiết từ API:", err);
     } finally {
-      setSavingRole(false);
+      setDetailLoading(false);
     }
   };
 
@@ -261,6 +245,7 @@ const UserList = () => {
               <tbody>
                 {users.map((item) => {
                   const isSelf = String(item.id) === String(currentUser?.id);
+                  const isItemAdmin = item.role === "ADMIN";
                   return (
                     <tr key={item.id}>
                       <td>
@@ -320,7 +305,7 @@ const UserList = () => {
                           type="button"
                           className="btn btn-sm btn-light me-1"
                           onClick={() => openDetailModal(item)}
-                          title="Xem chi tiết & Quản lý vai trò"
+                          title="Xem chi tiết người dùng"
                         >
                           <i className="fas fa-eye text-primary" />
                         </button>
@@ -330,10 +315,12 @@ const UserList = () => {
                             item.status === "ACTIVE" ? "btn-light text-danger" : "btn-light text-success"
                           }`}
                           onClick={() => handleToggleStatus(item)}
-                          disabled={isSelf}
+                          disabled={isSelf || (isItemAdmin && item.status === "ACTIVE")}
                           title={
                             isSelf
                               ? "Không thể khoá chính tài khoản đang đăng nhập"
+                              : isItemAdmin && item.status === "ACTIVE"
+                              ? "Không thể khóa tài khoản Quản trị viên"
                               : item.status === "ACTIVE"
                               ? "Khoá tài khoản"
                               : "Mở khoá tài khoản"
@@ -363,40 +350,29 @@ const UserList = () => {
         )}
       </div>
 
-      {/* ---- Modal Chi tiết người dùng & Phân quyền ---- */}
+      {/* ---- Modal Chi tiết người dùng ---- */}
       <AdminModal
         show={!!detailUser}
-        title="Chi tiết & Phân quyền người dùng"
+        title="Chi tiết thông tin người dùng"
         onClose={() => setDetailUser(null)}
         footer={
-          <>
-            <button
-              type="button"
-              className="btn btn-light"
-              onClick={() => setDetailUser(null)}
-            >
-              Đóng
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleSaveRole}
-              disabled={savingRole}
-            >
-              {savingRole ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                  Đang lưu...
-                </>
-              ) : (
-                "Lưu thay đổi vai trò"
-              )}
-            </button>
-          </>
+          <button
+            type="button"
+            className="btn btn-light px-4"
+            onClick={() => setDetailUser(null)}
+          >
+            Đóng
+          </button>
         }
       >
         {detailUser && (
           <div>
+            {detailLoading && (
+              <div className="text-muted small mb-2 fst-italic">
+                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                Đang làm mới chi tiết từ máy chủ...
+              </div>
+            )}
             <div className="d-flex align-items-center gap-3 mb-4 pb-3 border-bottom">
               {detailUser.avatarUrl ? (
                 <img
@@ -451,27 +427,6 @@ const UserList = () => {
                 <div className="text-dark small">
                   {detailUser.updatedAt ? new Date(detailUser.updatedAt).toLocaleString("vi-VN") : "—"}
                 </div>
-              </div>
-            </div>
-
-            <div className="mt-4 pt-3 border-top">
-              <label className="form-label fw-bold text-dark" htmlFor="select-user-role">
-                Thay đổi vai trò (Role Management)
-              </label>
-              <select
-                id="select-user-role"
-                className="form-select"
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-              >
-                {USER_ROLES.map((r) => (
-                  <option value={r.value} key={r.value}>
-                    {r.label} ({r.value})
-                  </option>
-                ))}
-              </select>
-              <div className="form-text small text-muted">
-                Lưu ý: Quản trị viên (ADMIN) có toàn quyền truy cập các trang quản trị hệ thống.
               </div>
             </div>
           </div>
