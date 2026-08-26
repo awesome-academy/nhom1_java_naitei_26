@@ -170,19 +170,19 @@ const ProductList = () => {
     const sorted = [...result];
     switch (sort) {
       case "name-asc":
-        sorted.sort((a, b) => a.name.localeCompare(b.name, "vi"));
+        sorted.sort((a, b) => (a.name || "").localeCompare(b.name || "", "vi"));
         break;
       case "name-desc":
-        sorted.sort((a, b) => b.name.localeCompare(a.name, "vi"));
+        sorted.sort((a, b) => (b.name || "").localeCompare(a.name || "", "vi"));
         break;
       case "price-asc":
-        sorted.sort((a, b) => a.price - b.price);
+        sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
         break;
       case "price-desc":
-        sorted.sort((a, b) => b.price - a.price);
+        sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
         break;
       case "rating-desc":
-        sorted.sort((a, b) => b.rating - a.rating);
+        sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
       default:
         break;
@@ -195,7 +195,7 @@ const ProductList = () => {
 
   // Các chữ cái thực sự có sản phẩm, để vô hiệu hoá những chữ còn lại.
   const availableLetters = useMemo(
-    () => new Set(allProducts.map((p) => getInitialLetter(p.name))),
+    () => new Set(allProducts.map((p) => getInitialLetter(p.name || ""))),
     [allProducts]
   );
 

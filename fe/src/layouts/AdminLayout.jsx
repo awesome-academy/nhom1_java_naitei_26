@@ -30,13 +30,32 @@ const AdminLayout = () => {
     return () => window.removeEventListener(STORE_CHANGED_EVENT, onStoreChanged);
   }, []);
 
+  // Số đề xuất chờ duyệt lấy từ API; lỗi (chưa đăng nhập, mất mạng) thì để 0 để ẩn badge
+  // chứ không chặn cả khung quản trị.
+  const [pendingSuggestions, setPendingSuggestions] = useState(0);
+
+  useEffect(() => {
+    let ignore = false;
+    getSuggestionStats()
+      .then((stats) => {
+        if (!ignore) setPendingSuggestions(stats?.pending || 0);
+      })
+      .catch(() => {
+        if (!ignore) setPendingSuggestions(0);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [location.pathname, storeVersion]);
+
   const badges = useMemo(
     () => ({
       pendingOrders: getOrderStats().pending,
-      pendingSuggestions: getSuggestionStats().pending,
+      pendingSuggestions,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [location.pathname, storeVersion]
+    [location.pathname, storeVersion, pendingSuggestions]
   );
 
   return (
