@@ -158,4 +158,19 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
+
+    /**
+     * Bắt lỗi 500 khi hệ thống phụ thuộc bên ngoài hoặc cấu hình không dùng được
+     * (ví dụ: gửi email thất bại, chưa cấu hình email nhận báo cáo)
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalStateException(IllegalStateException ex) {
+        log.error("IllegalStateException: {}", ex.getMessage(), ex);
+
+        ApiResponse<Object> response = ApiResponse.error(
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                ex.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
 }

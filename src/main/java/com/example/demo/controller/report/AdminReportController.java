@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,5 +33,18 @@ public class AdminReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         RevenueReportResponse response = reportService.getRevenueReport(from, to);
         return ApiResponse.ok("Lấy báo cáo doanh thu thành công", response);
+    }
+
+    /**
+     * API Admin gửi báo cáo doanh thu của khoảng thời gian đang xem qua email.
+     * POST /api/admin/reports/revenue/send-email?from=2026-07-28&to=2026-08-26
+     * Bỏ trống from/to sẽ lấy 30 ngày gần nhất, giống API xem báo cáo ở trên.
+     */
+    @PostMapping("/revenue/send-email")
+    public ApiResponse<RevenueReportResponse> sendRevenueReportEmail(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        RevenueReportResponse response = reportService.sendRevenueReportEmail(from, to);
+        return ApiResponse.ok("Đã gửi báo cáo doanh thu qua email", response);
     }
 }

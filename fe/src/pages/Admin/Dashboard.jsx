@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import Swal from "sweetalert2";
 import PageHeader from "../../components/admin/PageHeader";
 import StatCard from "../../components/admin/StatCard";
 import { formatPrice } from "../../utils/format";
@@ -11,6 +12,7 @@ import {
   fetchTotalUsers,
   getOrderStatusBadge,
   getOrderStatusLabel,
+  sendRevenueReportEmail,
 } from "../../data/adminReports";
 
 const RECENT_ORDER_LIMIT = 6;
@@ -33,6 +35,7 @@ const Dashboard = () => {
   const [revenue, setRevenue] = useState(null);
   const [revenueLoading, setRevenueLoading] = useState(true);
   const [revenueError, setRevenueError] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const [recentOrders, setRecentOrders] = useState([]);
   const [totalUsers, setTotalUsers] = useState(0);
@@ -121,6 +124,26 @@ const Dashboard = () => {
     setRange({ from: "", to: "" });
   }, []);
 
+  // Gửi đúng khoảng ngày của số liệu đang hiển thị (không phải giá trị đang gõ dở trong ô ngày),
+  // để email nhận được luôn khớp với những gì quản trị viên đang nhìn thấy trên màn hình.
+  const handleSendEmail = useCallback(async () => {
+    if (!revenue) return;
+
+    setSendingEmail(true);
+    try {
+      await sendRevenueReportEmail({ from: revenue.fromDate, to: revenue.toDate });
+      Swal.fire({
+        icon: "success",
+        title: "Đã gửi báo cáo qua email",
+        text: `Báo cáo khoảng ${formatDate(revenue.fromDate)} - ${formatDate(revenue.toDate)} đã được gửi tới email quản trị viên.`,
+      });
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "Gửi email thất bại", text: err.message });
+    } finally {
+      setSendingEmail(false);
+    }
+  }, [revenue]);
+
   const rangeLabel =
     revenue && revenue.fromDate && revenue.toDate
       ? `${formatDate(revenue.fromDate)} - ${formatDate(revenue.toDate)}`
@@ -173,6 +196,16 @@ const Dashboard = () => {
               disabled={revenueLoading}
             >
               30 ngày gần nhất
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-success"
+              onClick={handleSendEmail}
+              disabled={revenueLoading || sendingEmail || !revenue}
+              title="Gửi số liệu doanh thu của khoảng thời gian đang xem tới email quản trị viên"
+            >
+              <i className="far fa-envelope me-1" />
+              {sendingEmail ? "Đang gửi..." : "Gửi email"}
             </button>
           </div>
         </form>
