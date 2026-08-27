@@ -52,12 +52,6 @@ const Header = () => {
     setAvatarError(false);
   }, [user?.avatarUrl]);
 
-  const [avatarError, setAvatarError] = useState(false);
-
-  React.useEffect(() => {
-    setAvatarError(false);
-  }, [user?.avatarUrl]);
-
   const handleSearch = (e) => {
     e.preventDefault();
     const q = keyword.trim();
@@ -379,18 +373,7 @@ const Header = () => {
                   className={`nav-link fresh-nav-link ${location.pathname.startsWith("/de-xuat-san-pham") ? "active" : ""}`}
                   to="/de-xuat-san-pham"
                 >
-                  {isAuthenticated && user?.avatarUrl && !avatarError ? (
-                    <img
-                      src={user.avatarUrl}
-                      alt="Avatar"
-                      className="rounded-circle object-fit-cover shadow-sm me-1"
-                      style={{ width: 24, height: 24 }}
-                      onError={() => setAvatarError(true)}
-                    />
-                  ) : (
-                    <i className="fas fa-user-circle me-1" />
-                  )}
-                  {isAuthenticated ? user.fullName || user.email : "Tài khoản"}
+                  Đề xuất món mới
                 </Link>
               </li>
             </ul>
