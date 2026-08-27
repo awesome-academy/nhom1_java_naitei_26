@@ -166,7 +166,7 @@ const Register = () => {
                       name="phone"
                       id="reg-phone"
                       className={`form-control ${errors.phone ? "is-invalid" : ""}`}
-                      placeholder="0912345678"
+                      placeholder="Ví dụ: 0901234567"
                       value={form.phone}
                       onChange={handleChange}
                     />

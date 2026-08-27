@@ -194,7 +194,7 @@ const Checkout = () => {
                           className={`form-control ${errors.phone ? "is-invalid" : ""}`}
                           value={form.phone}
                           onChange={handleChange}
-                          placeholder="0912345678"
+                          placeholder="Nhập số điện thoại (10 chữ số)"
                         />
                         {errors.phone && <div className="invalid-feedback">{errors.phone}</div>}
                       </div>
